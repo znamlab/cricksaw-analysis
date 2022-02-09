@@ -15,7 +15,7 @@ out = find_cell_in_injection_site(project, mouse, channel, pixel_size_um,
                                   cell_scale_um=data_size_um, inj_min_width=100,
                                   inj_vol_percentile=99.99, cell_type='Cells',
                                   cell_kwargs=None, view_in_napari=NAPARI)
-cell_in_inj, inj_site, cell_out_inj = out
+cell_in_inj, inj_site, cell_out_inj = out[:3]
 
 voxel_vol = (pixel_size_um * 1e-3)**3
 inj_vol = np.sum(inj_site) * voxel_vol
@@ -32,3 +32,6 @@ print('If we assume that there are 100,000 cells/mm^3, we stained %.3f %% of the
       % (len(cell_in_inj) / inj_vol / 100000))
 
 print('Done')
+
+if NAPARI:
+    viewer = out[-1]
