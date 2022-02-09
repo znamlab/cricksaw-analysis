@@ -6,4 +6,4 @@ addpath(genpath('/camp/lab/znamenskiyp/home/users/blota/code/StitchIt/code'));
 cd /camp/lab/znamenskiyp/data/instruments/raw_data/projects/rabies_barcoding/BRYC64.2h
 
 % run preProcessing
-preProcessTiles([], 'illumChans', (1:3)
+preProcessTiles([], 'illumChans', (1:3));
