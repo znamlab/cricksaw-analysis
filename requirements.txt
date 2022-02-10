@@ -1,0 +1,9 @@
+numpy~=1.22.0
+setuptools~=58.0.4
+napari~=0.4.12
+scikit-image~=0.19.1
+tifffile~=2021.11.2
+brainglobe_napari_io
+cellfinder
+git+ssh://git@github.com/znamlab/flexiznam.git@dev#flexiznam
+
