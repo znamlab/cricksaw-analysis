@@ -32,7 +32,7 @@ cf_folder = processed / ('cellfinder_results_%03d' % pixel_size_um)
 reg_folder = cf_folder / 'registration'
 reg_ch0 = tifffile.imread(reg_folder / 'downsampled_standard_channel_0.tiff')
 reg_ch1 = tifffile.imread(reg_folder / 'downsampled_standard.tiff')
-
+reg_atlas = tifffile.imread(reg_folder / 'registered_atlas.tiff')
 allen25 = bga.bg_atlas.BrainGlobeAtlas("allen_mouse_25um")
 
 # find layers
@@ -50,21 +50,18 @@ top_of_layer = atlas_utils.external_view(peeled_atlas, axis='dorsal',
 
 if ADD_CELLS:
     # find cell count
-    reg_atlas = tifffile.imread(reg_folder / 'registered_atlas.tiff')
-    cell_xml = cf_folder / 'points' / 'cell_classification.xml'
-    cell_classification = reader_xml.xml_reader(str(cell_xml))
-    cell_classification = {c[1]['name']: c for c in cell_classification}
-    cells = cell_classification[cell_type]
-    cells_scaled = np.array(np.round(cells[0] * np.array(data_size_um) / 25))
+    cells = np.load(cf_folder / 'points' / 'abc4d.npy')
+    cell_atlas_id = cells[:, -1]
+    cells = cells[:, :-1]
+    cells_scaled = np.array(np.round(cells / 25))
     px_cells = np.array(cells_scaled, dtype=int)
-    cell_atlas_id = reg_atlas[px_cells[:, 0], px_cells[:, 1], px_cells[:, 2]]
     cells_in_layer = dict()
-    colors = np.array([[127, 201, 127, 200],
-                       [190, 174, 212, 200],
-                       [253, 192, 134, 200],
-                       [255, 255, 153, 200],
-                       [56, 108, 176, 200],
-                       [240, 2, 127, 200]], dtype=float)
+    colors = np.array([[127, 201, 127, 100],
+                       [190, 174, 212, 100],
+                       [253, 192, 134, 100],
+                       [255, 255, 153, 100],
+                       [56, 108, 176, 100],
+                       [240, 2, 127, 100]], dtype=float)
     cell_colors = {l: c for l, c in zip(layers, colors / 255)}
 atlas_dorsal_by_layer = dict()
 data_dorsal_by_layer = dict()
@@ -114,12 +111,18 @@ atlas_index['wm'] = bottom_of_layer
 if NAPARI:
     for l in layers[::-1]:
         viewer.add_image(data=bg_dorsal_by_layer[l], name='Background layer %s' % l,
-                         colormap='green', contrast_limits=[0, 500], blending='opaque')
+                         colormap='green', contrast_limits=[0, 500], blending='opaque',
+                         visible=False)
         viewer.add_image(data=data_dorsal_by_layer[l], name='Signal layer %s' % l,
-                         colormap='red', contrast_limits=[0, 2000], blending='additive')
+                         colormap='gray', contrast_limits=[0, 5000], blending='additive')
+
         viewer.add_labels(data=atlas_dorsal_by_layer[l], name='atlas %s' % l,
-                          opacity=0.1)
+                          opacity=0.1, visible=True if l == '1' else False)
         if ADD_CELLS:
-            viewer.add_points(data=cells_in_layer[l], name='Cells in %s' % l,
-                              size=[5, 10, 10], symbol='disc', edge_width=0.5,
+            flat_cell = np.array(cells_in_layer[l])
+            flat_cell[:, :] = flat_cell[:, [1, 0, 2]]
+            flat_cell[:, 0] = 0
+            viewer.add_points(data=flat_cell, name='Cells in %s' % l,
+                              size=[1, 3, 3], symbol='disc', edge_width=0.1,
                               face_color=cell_colors[l])
+
