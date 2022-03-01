@@ -1,13 +1,16 @@
 """Small script to threshold downsampled data and find cells in injection site"""
+import pathlib
+
 import numpy as np
 from skimage import measure
 from matplotlib import pyplot as plt
 from cricksaw_analysis.main import find_cell_in_injection_site
+import flexiznam as flz
 
 NAPARI = False
 project = 'rabies_barcoding'
 
-mouse = 'BRYC64.2i'
+mouse = 'BRYC64.2h'
 channel = 3
 pixel_size_um = 50
 data_size_um = [8, 2, 2]
@@ -27,6 +30,7 @@ axes[0, 0].hist(dst_to_center, np.arange(0, 10, 0.1))
 axes[0, 1].plot(dst_to_center, np.arange(len(dst_to_center)))
 axes[1, 0].plot(dst_to_center, np.arange(len(dst_to_center)) / len(dst_to_center))
 axes[1, 1].plot(dst_to_center, np.arange(len(dst_to_center)))
+
 for ax in axes.flatten():
     ax.set_xlabel('Distance to injection (mm)')
 for ax in axes[1, :]:
@@ -39,6 +43,10 @@ axes[1, 0].set_ylim(0, 0.5)
 axes[1, 1].set_ylim(0, 10000)
 fig.suptitle(mouse)
 fig.subplots_adjust(wspace=0.5, hspace=0.4)
+fig.savefig(pathlib.Path(flz.PARAMETERS['data_root']['processed']) / project / mouse /
+            'cell_vs_distance.svg', dpi=600)
+fig.savefig(pathlib.Path(flz.PARAMETERS['data_root']['processed']) / project / mouse /
+            'cell_vs_distance.pdf', dpi=600)
 plt.show()
 voxel_vol = (pixel_size_um * 1e-3) ** 3
 inj_vol = np.sum(inj_site) * voxel_vol
