@@ -8,6 +8,8 @@ Postprocessing and analysis of Cricksaw data
 
 `cellfinder` install is described there: https://docs.brainglobe.info/cellfinder/installation/cluster-installation/slurm
 
+It has been tested with `cudatoolkit=11.2 cudnn=8.1`
+
 Following the first steps, you might get some library errors:
 
 ```
