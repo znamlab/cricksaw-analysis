@@ -1,7 +1,8 @@
 """Script to look at the density of PhP.eB cre cells"""
-# import matplotlib
-# matplotlib.use('macosx')
+import matplotlib
+matplotlib.use('macosx')
 import flexiznam as flz
+import seaborn as sns
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -12,12 +13,13 @@ from sklearn.neighbors import KDTree
 from cricksaw_analysis import atlas_utils
 from cricksaw_analysis.io import load_cellfinder_results
 
+REDO = False
 NAPARI = False
 PLOT_DENSITY = False
 PLOT_SUMMARY = True
 project = 'rabies_barcoding'
 virus = 'A87'
-brain_pixel_size = np.array([8, 2, 2], dtype=float)
+# brain_pixel_size = np.array([8, 2, 2], dtype=float)
 atlas_pixel_size = 25.
 cell_type = 'Cells'
 channel = 0
@@ -41,22 +43,45 @@ if cortical_areas == 'ALL':
 
 
 def count_cells_by_areas(atlas_id, atlas, cortex_df=cdf,
-                         pixel_size=atlas_pixel_size):
+                         pixel_size=atlas_pixel_size, bg_atlas=bg_atlas):
+
     pixel_volume = (pixel_size / 1000)**3
     out = dict()
+
+    # first do the cortex
     for c, adf in cortex_df.groupby('area_acronym'):
         n_cells = np.isin(atlas_id, adf.id)
         area = np.isin(atlas, adf.id)
         out[c] = dict(count=np.sum(n_cells), size=np.sum(area),
                       volume=np.sum(area) * pixel_volume)
+
+    # now do rest of the brain
+    all_ids = np.unique(atlas_id)
+    is_ctx = np.isin(all_ids, cortex_df.id.values)
+    rest_of_brain = all_ids[np.logical_not(is_ctx)]
+    for area_id in rest_of_brain:
+        if area_id == 0:
+            # skip out of brain
+            continue
+        area_name = bg_atlas.structures.data[area_id]['acronym']
+        n_cells = np.isin(atlas_id, area_id)
+        area = np.isin(atlas, area_id)
+        out[area_name] = dict(count=np.sum(n_cells), size=np.sum(area),
+                              volume=np.sum(area) * pixel_volume)
+
     return out
 
 
-def calculate_neighbourhood(distance_radii, kdtree, cells, cdf=cdf):
+def calculate_neighbourhood(distance_radii, kdtree, cells, cdf=cdf, bylayer=False,
+                            area_acronym='VISp'):
     neighbours = dict()
     distance = dict()
-    for layer in ['all', '1', '2/3', '4', '5', '6a', '6b']:
-        v1_indices = cdf.loc[cdf.area_acronym == 'VISp', :]
+    if bylayer:
+        layers =  ['all', '1', '2/3', '4', '5', '6a', '6b']
+    else:
+        layers = ['all']
+    for layer in layers:
+        v1_indices = cdf.loc[cdf.area_acronym == area_acronym, :]
         if layer == 'all':
             v1_indices = v1_indices.id
         else:
@@ -73,6 +98,9 @@ def calculate_neighbourhood(distance_radii, kdtree, cells, cdf=cdf):
 
 
 summary_density = dict()
+filter_indices = cdf.id
+area = 'VISp'
+
 for mouse, m_df in mice_df[mice_df['Virus Batch'] == 'A87'].iterrows():
     if mouse in []:
         continue
@@ -82,23 +110,44 @@ for mouse, m_df in mice_df[mice_df['Virus Batch'] == 'A87'].iterrows():
         print(mouse_cellfinder_folder)
         continue
     print('Doing %s' % mouse)
-    try:
-        cells, downsampled_stacks, atlas = load_cellfinder_results(
-                                            mouse_cellfinder_folder)
-    except IOError or FileNotFoundError as err:
-        print('Failed to load data: %s' % err)
-        continue
-    rd = np.array(np.round(cells.values), dtype=int)
-    atlas_id = atlas[rd[:, 0], rd[:, 1], rd[:, 2]]
+    density_fig_path = processed / project / mouse / (
+            '%s_neighbour_by_distance.png' % mouse)
+    summary_density_mouse_path = processed / project / mouse / (
+            '%s_summary_density.csv' % mouse)
+
+    need_data = False
+    if REDO:
+        need_data = True
+    if PLOT_DENSITY and (not density_fig_path.is_file()):
+        need_data = True
+    if PLOT_SUMMARY and (not summary_density_mouse_path.is_file()):
+        need_data = True
+
+    if need_data:
+        try:
+            cells, downsampled_stacks, atlas = load_cellfinder_results(
+                                                mouse_cellfinder_folder)
+        except IOError or FileNotFoundError as err:
+            print('Failed to load data: %s' % err)
+            continue
+        rd = np.array(np.round(cells.values), dtype=int)
+        atlas_id = atlas[rd[:, 0], rd[:, 1], rd[:, 2]]
     if PLOT_SUMMARY:
-        summary_density[mouse] = count_cells_by_areas(atlas_id, atlas)
+        if REDO or (not summary_density_mouse_path.is_file()):
+            assert need_data
+            summary_density[mouse] = pd.DataFrame(count_cells_by_areas(atlas_id,
+                                                                       atlas))
+            summary_density[mouse].to_csv(summary_density_mouse_path)
+        else:
+            summary_density[mouse] = pd.read_csv(summary_density_mouse_path,
+                                                 index_col=0)
 
     if PLOT_DENSITY:
         # keep only cortical cells
-        ctx_indices = cdf.id
-        v1_indices = cdf.loc[cdf.area_acronym == 'VISp', 'id']
+        v1_indices = cdf.loc[cdf.area_acronym == area, 'id']
+
         cell_in_v1 = np.isin(atlas_id, v1_indices)
-        cell_in_ctx = np.isin(atlas_id, ctx_indices)
+        cell_in_ctx = np.isin(atlas_id, filter_indices)
         ctx_um = cells[cell_in_ctx] * atlas_pixel_size
         ctx_tree = KDTree(ctx_um)
 
@@ -166,11 +215,8 @@ for mouse, m_df in mice_df[mice_df['Virus Batch'] == 'A87'].iterrows():
             0.5, 1.05), ncol=4, fontsize=6)
         fig.subplots_adjust(wspace=0.4, hspace=0.4)
         fig.suptitle('%s - dilution %s' % (mouse, m_df.Dilution))
-
-        fig.savefig(processed / project / mouse / ('%s_neighbour_by_distance.png' % mouse),
-                    dpi=600)
-        fig.savefig(processed / project / mouse / ('%s_neighbour_by_distance.svg' % mouse),
-                    dpi=600)
+        fig.savefig(density_fig_path, dpi=600)
+        fig.savefig(str(density_fig_path).replace('png', 'svg'), dpi=600)
         if NAPARI:
             from napari.viewer import Viewer
             viewer = Viewer()
@@ -192,5 +238,141 @@ if PLOT_SUMMARY:
         area_prop[c]['n_pixels'] = np.sum(np.isin(bg_atlas.annotation, adf.id))
         area_prop[c]['volume'] = area_prop[c]['n_pixels'] * px_volume
 
-    count_df = pd.DataFrame(summary_density)
+    long_format = []
+    for mouse, mdata in summary_density.items():
+        for area, adata in mdata.items():
+            d = dict(area=area, mouse=mouse, dilution=mice_df.loc[mouse, 'Dilution'],
+                     zres=mice_df.loc[mouse, 'Zresolution'])
+            for w, value in adata.items():
+                d['what'] = w
+                d['value'] = value
+                long_format.append(dict(d))
+    long_format = pd.DataFrame(long_format)
+
+    count_df = summary_density
     prop = pd.DataFrame(area_prop)
+
+    # Area figures
+    fig = plt.figure()
+    for area in ['PIR', 'VISa', 'VISal', 'VISam', 'VISl', 'VISli', 'VISp', 'VISpl',
+                 'VISpm', 'VISpor', 'VISrl']:
+        v1 = long_format[long_format.area == area]
+        vdf = v1[v1.what == 'volume'].set_index('mouse', inplace=False)
+        v1 = v1[v1.what == 'count'].set_index('mouse', inplace=False)
+        v1.columns = ['count' if c == 'value' else c for c in v1.columns]
+        v1['density'] = v1['count'] / vdf['value']
+        fig.clear()
+        for iax, w in enumerate(['count', 'density']):
+            ax = fig.add_subplot(2, 2, 1 + iax * 2)
+            sns.stripplot(data=v1, x='dilution', y=w, ax=ax,
+                          hue='zres', order=['1/100', '1/330', '1/1000', '1/3300'])
+            ax1 = fig.add_subplot(2, 2, 2 + iax * 2)
+            sns.stripplot(data=v1, x='dilution', y=w, ax=ax1,
+                          hue='zres', order=['1/100', '1/330', '1/1000', '1/3300'])
+            ax1.set_ylim([0, v1[v1['dilution'] == '1/1000'][w].max()])
+        fig.subplots_adjust(wspace=0.3, hspace=0.3)
+        fig.suptitle(area)
+        fig.savefig(processed / project / ('%s_density_plot.png' % area), dpi=600)
+
+    # hypothalamus figure
+    fig.clear()
+    hypo = ['HY'] + bg_atlas.get_structure_descendants('HY')
+    # remove useless area:
+    hypo.remove('ZI')
+    hypo.remove('STN')
+    # keep only valid areas
+    hypo_df = long_format[long_format.area.isin(hypo)]
+    sum_df = hypo_df.groupby(['what', 'mouse', 'dilution', 'zres'],
+                             as_index=False).aggregate(np.sum)
+    vdf = sum_df[sum_df.what == 'volume'].set_index('mouse', inplace=False, drop=False)
+    sum_df = sum_df[sum_df.what == 'count']
+    sum_df.set_index('mouse', inplace=True, drop=False)
+    sum_df.drop('what', axis=1, inplace=True)
+    sum_df.columns = ['count' if c == 'value' else c for c in sum_df.columns]
+    sum_df['density'] = sum_df['count'] / vdf.value
+
+    # plot the hypothalamus figure now
+    fig.clear()
+    plt.suptitle('Hypothalamus (except ZI and STN)')
+    ax = fig.add_subplot(2, 2, 1)
+    sns.stripplot(data=sum_df, x='dilution', y='count', ax=ax,
+                  hue='zres', order=['1/100', '1/330', '1/1000', '1/3300'])
+    ax.set_ylabel('Cell count')
+
+    ax1 = fig.add_subplot(2, 2, 2)
+    ax1.clear()
+    sns.stripplot(data=sum_df, x='dilution', y='density',
+                  ax=ax1, hue='zres', order=['1/100', '1/330', '1/1000', '1/3300'])
+    ax1.set_ylabel('Cell density (cell/$mm^3$)')
+
+    ax2 = fig.add_subplot(2, 2, 3)
+    one_over_100 = hypo_df[hypo_df.dilution == '1/100']
+    count_df = one_over_100[one_over_100.what == 'count']
+    count_df = count_df.rename(columns=dict(value='count'))
+    av = count_df[count_df.zres == 8].groupby('area').aggregate(np.mean)
+    av.sort_values('count', inplace=True)
+    av['area'] = av.index
+    areas_to_keep = av.index[-15:]
+    ax2.clear()
+    sns.stripplot(data=count_df[count_df.area.isin(areas_to_keep)], x='area', y='count',
+                  ax=ax2, hue='zres', order=areas_to_keep)
+    sns.stripplot(data=av[av.area.isin(areas_to_keep)], x='area', y='count',
+                  order=areas_to_keep, color='k', marker='s', size=5, ax=ax2)
+    ax2.tick_params(axis='x', labelrotation=45)
+    ax2.set_ylabel('Cell count')
+
+    c = one_over_100[one_over_100.what == 'count'].set_index(['mouse', 'area'])
+    v = one_over_100[one_over_100.what == 'volume'].set_index(['mouse', 'area'])
+    v['density'] = c.value / v.value
+    density_df = v.reset_index()
+    av = density_df[density_df.zres == 8].groupby('area').aggregate(np.mean)
+    av.sort_values('density', inplace=True)
+    av['area'] = av.index
+    areas_to_keep = av.index[-15:]
+
+    ax3 = fig.add_subplot(2, 2, 4)
+    ax3.clear()
+    sns.stripplot(data=density_df[density_df.area.isin(areas_to_keep)], x='area',
+                  y='density', ax=ax3, hue='zres', order=areas_to_keep)
+    sns.stripplot(data=av.loc[areas_to_keep], x='area', y='density', order=areas_to_keep,
+                  color='k', marker='s', size=5, ax=ax3)
+    ax3.tick_params(axis='x', labelrotation=45)
+    ax3.set_ylabel('Cell density (cell/$mm^3$)')
+    fig.savefig(processed / project / ('%s_density_plot.png' % 'hypothalamus'), dpi=600)
+
+    # global figure
+    good_areas = hypo_df.groupby(['mouse', 'dilution', 'zres', 'what']).aggregate(
+        np.sum).reset_index()
+    good_areas['area'] = 'HY'
+    for area in ['PIR', 'VISp']:
+        good_areas = pd.concat([good_areas, long_format[long_format.area == area]])
+
+    good_areas = good_areas[good_areas.zres == 8]
+    c = good_areas[good_areas.what == 'count'].set_index(['mouse', 'area'])
+    v = good_areas[good_areas.what == 'volume'].set_index(['mouse', 'area'])
+    c['density'] = c.value / v.value
+    good_areas = c.reset_index()
+    good_areas.rename(columns=dict(value='count'), inplace=True)
+    av = good_areas.groupby(['dilution',  'area']).aggregate(np.mean).reset_index()
+    narea = len(good_areas.area.unique())
+    ylabel = dict(count='Cell count', density='Cell density ($cell.mm^{-3}$)')
+    xlabel = dict(count='', density='Dilution')
+    fig, axes = plt.subplots(2, 1)
+    for iax, what in enumerate(['count', 'density']):
+        sns.stripplot(data=good_areas, x='dilution', y=what, hue='area',
+                      order=['1/100', '1/330', '1/1000', '1/3300'], dodge=True,
+                      ax=axes[iax], hue_order=['VISp', 'PIR', 'HY'], size=6, alpha=0.7)
+        sns.boxplot(data=good_areas, x='dilution', y=what, hue='area',
+                    order=['1/100', '1/330', '1/1000', '1/3300'], dodge=True,
+                    ax=axes[iax], hue_order=['VISp', 'PIR', 'HY'], showmeans=True,
+                    meanline=True, meanprops={'color': 'k', 'ls': '-', 'lw': 2},
+                    medianprops={'visible': False}, whiskerprops={'visible': False},
+                    showfliers=False, showbox=False, showcaps=False,)
+        handles, labels = axes[iax].get_legend_handles_labels()
+        l = axes[iax].legend(handles[0:narea], labels[0:narea])
+        axes[iax].set_ylabel(ylabel[what])
+        axes[iax].set_xlabel(xlabel[what])
+    fig.subplots_adjust(right=0.98, top=0.98, left=0.25)
+    fig.set_size_inches([3.5, 5])
+    fig.savefig(processed / project / ('dilution_area_of_interest.png'), dpi=600)
+    fig.savefig(processed / project / ('dilution_area_of_interest.svg'), dpi=600)
