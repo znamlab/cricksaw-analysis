@@ -4,7 +4,14 @@ import bg_atlasapi as bga
 
 
 def create_ctx_table(atlas=None):
-    """Create a dataframe with cortical area info"""
+    """Create a dataframe with cortical area info
+
+    Args:
+        atlas: either the name of a valid BrainGlobe atlas or the BrainGlobeAtlas
+               instance
+    Returns:
+        ctx_df: a pandas DataFrame with information about cortical area and layers
+    """
 
     if atlas is None:
         atlas = bga.bg_atlas.BrainGlobeAtlas('allen_mouse_25um')
@@ -109,3 +116,47 @@ def get_border(label_image, threed=False):
     diff_leftright = np.diff(np.hstack([np.zeros([label_image.shape[0], 1]), label_image]), axis=1) != 0
     diff = diff_leftright + diff_updowm
     return diff
+
+
+def cell_density_by_areas(atlas_id, atlas, cortex_df, pixel_size, bg_atlas):
+    """Count the number of cells across areas and find area volume in this brain
+
+    Args:
+        atlas_id: id of the atlas for each cell
+        atlas: atlas volume (ID of area per pixel, usually the registered to brain). Is
+               used to find the volume of each area in this specific brain
+        cortex_df: output of atlas_utils.create_ctx_table
+        pixel_size: size of the pixel in atlas
+        bg_atlas: brainglobe atlas instance (to get annotations)
+
+    Returns:
+        dict of dict with one element per area. Contains info about number of cells,
+        number of pixels in the area and volume of the area
+    """
+    pixel_volume = (pixel_size / 1000)**3
+    out = dict()
+
+    # first do the cortex
+    for c, adf in cortex_df.groupby('area_acronym'):
+        n_cells = np.isin(atlas_id, adf.id)
+        area = np.isin(atlas, adf.id)
+        area_d = dict(count=np.sum(n_cells), size=np.sum(area))
+        area_d['volume'] = np.sum(area) * pixel_volume
+        area_d['density'] = area_d['count'] / area_d['volume']
+        out[c] = area_d
+    # now do rest of the brain
+    all_ids = np.unique(atlas_id)
+    is_ctx = np.isin(all_ids, cortex_df.id.values)
+    rest_of_brain = all_ids[np.logical_not(is_ctx)]
+    for area_id in rest_of_brain:
+        if area_id == 0:
+            # skip out of brain
+            continue
+        area_name = bg_atlas.structures.data[area_id]['acronym']
+        n_cells = np.isin(atlas_id, area_id)
+        area = np.isin(atlas, area_id)
+        area_d = dict(count=np.sum(n_cells), size=np.sum(area))
+        area_d['volume'] = np.sum(area) * pixel_volume
+        area_d['density'] = area_d['count'] / area_d['volume']
+        out[area_name] = area_d
+    return out

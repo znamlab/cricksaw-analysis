@@ -1,5 +1,8 @@
 """Script to look at the density of PhP.eB cre cells"""
 import matplotlib
+
+from cricksaw_analysis.atlas_utils import cell_density_by_areas
+
 matplotlib.use('macosx')
 import flexiznam as flz
 import seaborn as sns
@@ -40,36 +43,6 @@ fig = plt.figure(figsize=(10, 5))
 
 if cortical_areas == 'ALL':
     cortical_areas = list(cdf.area_acronym.unique())
-
-
-def count_cells_by_areas(atlas_id, atlas, cortex_df=cdf,
-                         pixel_size=atlas_pixel_size, bg_atlas=bg_atlas):
-
-    pixel_volume = (pixel_size / 1000)**3
-    out = dict()
-
-    # first do the cortex
-    for c, adf in cortex_df.groupby('area_acronym'):
-        n_cells = np.isin(atlas_id, adf.id)
-        area = np.isin(atlas, adf.id)
-        out[c] = dict(count=np.sum(n_cells), size=np.sum(area),
-                      volume=np.sum(area) * pixel_volume)
-
-    # now do rest of the brain
-    all_ids = np.unique(atlas_id)
-    is_ctx = np.isin(all_ids, cortex_df.id.values)
-    rest_of_brain = all_ids[np.logical_not(is_ctx)]
-    for area_id in rest_of_brain:
-        if area_id == 0:
-            # skip out of brain
-            continue
-        area_name = bg_atlas.structures.data[area_id]['acronym']
-        n_cells = np.isin(atlas_id, area_id)
-        area = np.isin(atlas, area_id)
-        out[area_name] = dict(count=np.sum(n_cells), size=np.sum(area),
-                              volume=np.sum(area) * pixel_volume)
-
-    return out
 
 
 def calculate_neighbourhood(distance_radii, kdtree, cells, cdf=cdf, bylayer=False,
@@ -135,8 +108,8 @@ for mouse, m_df in mice_df[mice_df['Virus Batch'] == 'A87'].iterrows():
     if PLOT_SUMMARY:
         if REDO or (not summary_density_mouse_path.is_file()):
             assert need_data
-            summary_density[mouse] = pd.DataFrame(count_cells_by_areas(atlas_id,
-                                                                       atlas))
+            summary_density[mouse] = pd.DataFrame(cell_density_by_areas(atlas_id,
+                                                                        atlas))
             summary_density[mouse].to_csv(summary_density_mouse_path)
         else:
             summary_density[mouse] = pd.read_csv(summary_density_mouse_path,
@@ -341,11 +314,17 @@ if PLOT_SUMMARY:
     fig.savefig(processed / project / ('%s_density_plot.png' % 'hypothalamus'), dpi=600)
 
     # global figure
-    good_areas = hypo_df.groupby(['mouse', 'dilution', 'zres', 'what']).aggregate(
-        np.sum).reset_index()
-    good_areas['area'] = 'HY'
-    for area in ['PIR', 'VISp']:
-        good_areas = pd.concat([good_areas, long_format[long_format.area == area]])
+    good_areas = dict()
+    areas_of_interest = ['ENT', 'PIR', 'AON', 'COA']
+    for parent_area in areas_of_interest:
+        area_ids = [parent_area] + bg_atlas.get_structure_descendants(parent_area)
+        df = long_format[long_format.area.isin(area_ids)]
+        df = df.groupby(['mouse', 'dilution', 'zres', 'what']).aggregate(
+            np.sum).reset_index()
+        df['area'] = parent_area
+        good_areas[parent_area] = df
+
+    good_areas = pd.concat(good_areas.values())
 
     good_areas = good_areas[good_areas.zres == 8]
     c = good_areas[good_areas.what == 'count'].set_index(['mouse', 'area'])
@@ -357,22 +336,30 @@ if PLOT_SUMMARY:
     narea = len(good_areas.area.unique())
     ylabel = dict(count='Cell count', density='Cell density ($cell.mm^{-3}$)')
     xlabel = dict(count='', density='Dilution')
+
     fig, axes = plt.subplots(2, 1)
+    mean_only = True
+    if mean_only:
+        good_areas = good_areas.groupby(['dilution', 'area']).aggregate(
+            np.mean).reset_index()
     for iax, what in enumerate(['count', 'density']):
         sns.stripplot(data=good_areas, x='dilution', y=what, hue='area',
                       order=['1/100', '1/330', '1/1000', '1/3300'], dodge=True,
-                      ax=axes[iax], hue_order=['VISp', 'PIR', 'HY'], size=6, alpha=0.7)
-        sns.boxplot(data=good_areas, x='dilution', y=what, hue='area',
-                    order=['1/100', '1/330', '1/1000', '1/3300'], dodge=True,
-                    ax=axes[iax], hue_order=['VISp', 'PIR', 'HY'], showmeans=True,
-                    meanline=True, meanprops={'color': 'k', 'ls': '-', 'lw': 2},
-                    medianprops={'visible': False}, whiskerprops={'visible': False},
-                    showfliers=False, showbox=False, showcaps=False,)
+                      ax=axes[iax], hue_order=areas_of_interest, size=6, alpha=0.7)
+        if not mean_only:
+            sns.boxplot(data=good_areas, x='dilution', y=what, hue='area',
+                        order=['1/100', '1/330', '1/1000', '1/3300'], dodge=True,
+                        ax=axes[iax], hue_order=areas_of_interest, showmeans=True,
+                        meanline=True, meanprops={'color': 'k', 'ls': '-', 'lw': 2},
+                        medianprops={'visible': False}, whiskerprops={'visible': False},
+                        showfliers=False, showbox=False, showcaps=False,)
         handles, labels = axes[iax].get_legend_handles_labels()
         l = axes[iax].legend(handles[0:narea], labels[0:narea])
         axes[iax].set_ylabel(ylabel[what])
         axes[iax].set_xlabel(xlabel[what])
+    for x in axes:
+        x.set_ylim([0, x.get_ylim()[1]])
     fig.subplots_adjust(right=0.98, top=0.98, left=0.25)
-    fig.set_size_inches([3.5, 5])
+    fig.set_size_inches([5, 5])
     fig.savefig(processed / project / ('dilution_area_of_interest.png'), dpi=600)
     fig.savefig(processed / project / ('dilution_area_of_interest.svg'), dpi=600)
