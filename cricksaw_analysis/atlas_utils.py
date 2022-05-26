@@ -1,6 +1,70 @@
 import numpy as np
 import pandas as pd
 import bg_atlasapi as bga
+from scipy.ndimage import binary_dilation
+
+
+def plot_borders_and_areas(ax, label_img, areas_to_plot, color_kwargs=dict(),
+                           border_dilatation=2, area_dilatation=0,
+                           contour_version=False, cont_kwargs=dict()):
+    """Plot the atlas borders and highlight areas
+
+    contour_version is a lot slower but tried to make something vectorial
+
+    Args:
+        label_img: a 2d image of labels
+        areas_to_plot: a list (of list) of area ids to label.
+        color_kwargs: kwargs for imshow of the borders (useful for color specification)
+        border_dilatation: number of iteration of dilatation of borders
+        area_dilatation: number of iteration of dilatation of areas. Useful to render
+                         very thin structures
+        img, border the image label and the image of borders
+    """
+    kwargs = dict(vmin=0, vmax=len(areas_to_plot) + 1)
+    kwargs.update(color_kwargs)
+    contours = []
+    if not contour_version:
+        img = np.zeros(label_img.shape, dtype=float)
+        for i_ar, ar_list in enumerate(areas_to_plot):
+            good = np.isin(label_img, ar_list)
+            if area_dilatation > 0:
+                good = binary_dilation(good, iterations=area_dilatation)
+            img[good] += i_ar + 1
+
+        border = get_border(label_img)
+        if border_dilatation > 0:
+            border = binary_dilation(border, iterations=border_dilatation)
+        border = np.asarray(border, dtype=float)
+        border[border == 0] = np.nan
+        img[img == 0] = np.nan
+        ax.imshow(img, **kwargs)
+        ax.imshow(border, vmin=-1, vmax=2, cmap='Greys')
+        ax.set_axis_off()
+        return img, border
+
+    # instead of plotting the border, make a contour for each area
+    # frist group subgroups of areas
+    new_label = np.array(label_img)
+    filled_areas = []
+    for area_subgroup in areas_to_plot:
+        filled_areas.append(area_subgroup[0])
+        for area in area_subgroup:
+            new_label[new_label == area] = area_subgroup[0]
+
+    bin_image = np.zeros(new_label.shape, dtype='int8')
+    for area in np.unique(new_label):
+        # create an image with 1 in the area and 0 everywhere else
+        bin_image *= 0
+        bin_image[new_label == area] = 1
+        ax.contour(bin_image, levels=[0.5], cmap='Greys', vmin=-1, vmax=2, **cont_kwargs)
+
+        if area in filled_areas:
+            i_area = filled_areas.index(area)
+            bin_image[new_label == area] += i_area
+            contours.append(ax.contourf(bin_image, levels=np.array([0.5, 1.5]) + i_area, **kwargs))
+    ax.set_aspect('equal')
+    ax.set_axis_off()
+    return contours
 
 
 def create_ctx_table(atlas=None):
