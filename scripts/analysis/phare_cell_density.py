@@ -1,10 +1,8 @@
 """Script to look at the density of PhP.eB cre cells"""
 import matplotlib
-
-from cricksaw_analysis.atlas_utils import cell_density_by_areas
-
-matplotlib.use('macosx')
-import flexiznam as flz
+import socket
+if socket.gethostname() == 'C02Z85AULVDC':
+    matplotlib.use('macosx')
 import seaborn as sns
 from pathlib import Path
 import numpy as np
@@ -12,9 +10,10 @@ import pandas as pd
 import bg_atlasapi as bga
 from matplotlib import pyplot as plt
 from sklearn.neighbors import KDTree
-
+import flexiznam as flz
 from cricksaw_analysis import atlas_utils
 from cricksaw_analysis.io import load_cellfinder_results
+from cricksaw_analysis.atlas_utils import cell_density_by_areas
 
 REDO = False
 NAPARI = False
@@ -345,7 +344,8 @@ if PLOT_SUMMARY:
     for iax, what in enumerate(['count', 'density']):
         sns.stripplot(data=good_areas, x='dilution', y=what, hue='area',
                       order=['1/100', '1/330', '1/1000', '1/3300'], dodge=True,
-                      ax=axes[iax], hue_order=areas_of_interest, size=6, alpha=0.7)
+                      ax=axes[iax], hue_order=areas_of_interest, size=5, alpha=0.7,
+                      palette='Set1')
         if not mean_only:
             sns.boxplot(data=good_areas, x='dilution', y=what, hue='area',
                         order=['1/100', '1/330', '1/1000', '1/3300'], dodge=True,
@@ -355,11 +355,24 @@ if PLOT_SUMMARY:
                         showfliers=False, showbox=False, showcaps=False,)
         handles, labels = axes[iax].get_legend_handles_labels()
         l = axes[iax].legend(handles[0:narea], labels[0:narea])
-        axes[iax].set_ylabel(ylabel[what])
-        axes[iax].set_xlabel(xlabel[what])
-    for x in axes:
+        axes[iax].set_ylabel(ylabel[what], labelpad=0.1)
+        axes[iax].set_xlabel(xlabel[what], labelpad=0.1)
+
+    yticks = [range(0, 5001, 1000), range(0, 501, 100)]
+    for ix, x in enumerate(axes):
         x.set_ylim([0, x.get_ylim()[1]])
-    fig.subplots_adjust(right=0.98, top=0.98, left=0.25)
-    fig.set_size_inches([5, 5])
+        x.tick_params(direction='in', width=1.5)
+        x.tick_params(axis='y', pad=0.1)
+
+        lab = [str(l) if not i % 2 else '' for i, l in enumerate(yticks[ix])]
+        x.set_yticks(yticks[ix], labels=lab, rotation=90, va='center')
+        x.set_ylim([0, yticks[ix][-1]])
+        x.spines['top'].set_visible(False)
+        x.spines['right'].set_visible(False)
+        x.spines['left'].set_lw(1.5)
+        x.spines['bottom'].set_lw(1.5)
+    x.get_legend().remove()
+    fig.subplots_adjust(right=0.98, top=0.98, left=0.15)
+    fig.set_size_inches([2.5, 3])
     fig.savefig(processed / project / ('dilution_area_of_interest.png'), dpi=600)
     fig.savefig(processed / project / ('dilution_area_of_interest.svg'), dpi=600)
