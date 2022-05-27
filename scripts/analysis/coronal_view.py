@@ -1,13 +1,13 @@
 """Generate a coronal view of data"""
 import matplotlib
 matplotlib.use('macosx')
-import os
-import PIL
+from pathlib import Path
 import numpy as np
 import pandas as pd
+import PIL
 import tifffile
 from matplotlib import pyplot as plt
-from pathlib import Path
+from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 # brainglobe parts
 import bg_atlasapi as bga
 import bg_space
@@ -16,15 +16,27 @@ from imlib.cells.utils import get_cell_location_array
 import flexiznam as flz
 from flexiznam.schema import Dataset
 # local imports
-from cricksaw_analysis.io import load_cellfinder_results
 from cricksaw_analysis import atlas_utils
 
 
 project = 'rabies_barcoding'
 plane_per_section = 5
+pixel_size = 2
 mouse_filter = dict(Dilution='1/100', Zresolution=8)
+plot_prop = {'BRJN101.5c':
+                 dict(ENT=dict(xlim=[4150, 5250], ylim=[3050, 1550], z=350),
+                      PIR=dict(xlim=(3550, 4350), ylim=(2900, 2070), z=1180),
+                      AON=dict(xlim=(2750, 4070), ylim=(2980, 1900), z=1240),
+                      COA=dict(xlim=[3700, 4500], ylim=[3680, 3200], z=650),
+                      ),
+             'BRJN101.5d':
+                 dict(ENT=dict(xlim=[3900, 5200], ylim=[3000, 1300], z=330),
+                      PIR=dict(xlim=(3200, 4400), ylim=(3000, 2000), z=1130),),
+             }
 areas = ['ENT', 'PIR', 'AON', 'COA']
-atlas_name = 'allen_mouse_10um'
+atlas_size = 10
+
+atlas_name = 'allen_mouse_%dum' % atlas_size
 
 bg_atlas = bga.bg_atlas.BrainGlobeAtlas(atlas_name)
 PROJECTION_FUNC = np.max  # must have a axis argument
@@ -40,6 +52,10 @@ fig = plt.figure()
 
 for _, mouse in mice.iterrows():
     # look if I have cellfinder data
+    print("Doing %s" % mouse.name, flush=True)
+    if mouse.name not in plot_prop:
+        print('%s not in plot_prop, skip' % mouse.name)
+        continue
     children = flz.get_children(mouse.id, flexilims_session=flm_sess,
                                 children_datatype='dataset')
     cellfinder_data = children[(children.dataset_type == 'cellfinder') &
@@ -61,21 +77,31 @@ for _, mouse in mice.iterrows():
     source_origin = ("Anterior", "Superior", "Right")
     target_origin = ("Posterior", "Superior", "Left")
     trans_atlas = tifffile.imread(cellfinder_data.path_full / 'registration' /
-                                'registered_atlas.tiff')
+                                  'registered_atlas.tiff')
     trans_atlas = bg_space.map_stack_to(source_origin, target_origin, trans_atlas,
                                         copy=False)
-
-    for parent_area in areas:
+    trans_hem = tifffile.imread(cellfinder_data.path_full / 'registration' /
+                                'registered_hemispheres.tiff')
+    trans_hem = bg_space.map_stack_to(source_origin, target_origin, trans_hem,
+                                      copy=False)
+    trans_atlas[trans_hem == 1] = 0
+    fig.clear()
+    fig.suptitle('Mouse %s' % mouse.name)
+    for iax, parent_area in enumerate(areas):
+        print('    doing %s' % parent_area, flush=True)
         area_names = [parent_area] + bg_atlas.get_structure_descendants(parent_area)
         area_ids = [bg_atlas.structures.acronym_to_id_map[a] for a in area_names]
         ok_cells = np.isin(atlas_id, area_ids)
         # keep only the right hemisphere
         midline = bg_atlas.annotation.shape[-1] / 2
-        right = atlas_coord[:, -1] > midline
+        right = atlas_coord[:, 2] < midline
         ok_cells = np.logical_and(ok_cells, right)
-        ok_planes = np.round(cells[ok_cells, ap_axis])
-        plane_count = pd.value_counts(ok_planes)
-        best_plane = plane_count.sort_values().index[-1]
+        if parent_area in plot_prop[mouse.name]:
+            best_plane = plot_prop[mouse.name][parent_area]['z']
+        else:
+            ok_planes = np.round(cells[ok_cells, ap_axis])
+            plane_count = pd.value_counts(ok_planes)
+            best_plane = plane_count.sort_values().index[-1]
         # get the raw data for this plane
         raw_data_dir = raw / project / mouse.name / 'stitchedImages_100'
         assert raw_data_dir.is_dir()
@@ -90,7 +116,7 @@ for _, mouse in mice.iterrows():
         for channel in [2, 3]:
             chan_dir = raw_data_dir / str(channel)
             assert chan_dir.is_dir()
-            for zslice in range(5):
+            for zslice in range(plane_per_section):
                 tif = chan_dir / ('section_%03d_%02d.tif' % (best_slice + 1,
                                                              zslice + 1))
                 tif = tifffile.imread(tif)
@@ -98,11 +124,11 @@ for _, mouse in mice.iterrows():
                     img_data[channel] = np.zeros(list(tif.shape) + [5], dtype=tif.dtype)
                 img_data[channel][:, :, zslice] = tif
 
-        for channel in img_data:
+        for channel in [2, 3]:
             img_data[channel] = PROJECTION_FUNC(img_data[channel], axis=2)
 
         rgb = np.zeros(list(img_data[3].shape) + [3], dtype=np.uint8)
-        contrast = np.percentile(img_data[3], [5, 99.9])
+        contrast = np.percentile(img_data[3], [0, 99.9])
         red = np.array((img_data[3] - contrast[0]) / np.diff(contrast) * 255)
         red[red < 0] = 0
         red[red > 255] = 255
@@ -117,26 +143,53 @@ for _, mouse in mice.iterrows():
         rgb[:, :, 2] = green
         in_plane = np.abs(cells[:, ap_axis] - best_plane) < 5
 
-        fig.clear()
-        ax = fig.add_subplot(1, 1, 1)
+        ax = fig.add_subplot(2, 2, iax + 1)
         ax.imshow(rgb)
-        ax.plot(cells[in_plane, ml_axis], cells[in_plane, dv_axis], 'o',
-                alpha=0.2, mfc='none', mec='k')
-        ax.plot(cells[np.logical_and(ok_cells, in_plane), ml_axis],
-                cells[np.logical_and(ok_cells, in_plane), dv_axis], 'o', color='lime',
-                alpha=0.2)
-        ax.set_title(parent_area)
-
         label_img = np.asarray(
             PIL.Image.fromarray(
-                trans_atlas[int(best_plane * mouse['Zresolution'] / 25),:,:]
+                trans_atlas[int(best_plane * mouse['Zresolution'] / atlas_size), :, :]
             ).resize(rgb.shape[1::-1], resample=PIL.Image.NEAREST))
 
         o = atlas_utils.plot_borders_and_areas(ax, label_img, areas_to_plot=[],
                                                color_kwargs=dict(),
-                                               border_dilatation=2, area_dilatation=0,
-                                               contour_version=True, cont_kwargs=dict())
-        ax.set_xlim(4200, 4800)
-        ax.set_ylim(3070, 2700)
+                                               cont_kwargs=dict(),
+                                               label_atlas=bg_atlas)
 
-area_to_plot = dict(ENT=dict(xlim=[4000,5300], ylim=[3100,1500]))
+        ax.plot(cells[in_plane, ml_axis], cells[in_plane, dv_axis], 'o',
+                alpha=0.2, mfc='none', mec='k')
+        ax.plot(cells[np.logical_and(ok_cells, in_plane), ml_axis],
+                cells[np.logical_and(ok_cells, in_plane), dv_axis], 'o', color='lime',
+                alpha=0.1, ms=3)
+        ax.set_title(parent_area)
+        if parent_area in plot_prop[mouse.name]:
+            ax.set_xlim(*plot_prop[mouse.name][parent_area]['xlim'])
+            ax.set_ylim(*plot_prop[mouse.name][parent_area]['ylim'])
+
+        # add a scale bar
+        scale_bar = AnchoredSizeBar(ax.get_xaxis_transform(),
+                                    size=500/pixel_size,
+                                    label=r'$500\mu m$',
+                                    loc='lower right',
+                                    color='white',
+                                    frameon=False,
+                                    size_vertical=0.01)
+        ax.add_artist(scale_bar)
+        ax.set_aspect('equal')
+        ax.set_axis_off()
+
+    fig.subplot_adjusts(top=0.05, bottom=0, left=0, right=1, wspace=0, hspace=0.05)
+    # save output
+    ds = Dataset.from_origin(origin_id=mouse.id, flexilims_session=flm_sess,
+                             dataset_type='microscopy', conflicts='append')
+    ds.flexilims_session = flm_sess
+    ds.genealogy = list(ds.genealogy)[:-1] + ['coronal_view_%s.svg' % ('_'.join(areas))]
+    ds.extra_attributes['atlas'] = atlas_name
+    ds.extra_attributes['num_slices'] = plane_per_section
+    ds.extra_attributes['projection'] = PROJECTION_FUNC.__name__
+    ds.extra_attributes['pixel_size'] = pixel_size
+    ds.path = ds.path.parent / ds.genealogy[-1]
+    fig.savefig(ds.path_full)
+    ds.update_flexilims(mode='overwrite')
+
+
+

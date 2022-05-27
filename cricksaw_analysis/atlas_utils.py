@@ -5,44 +5,30 @@ from scipy.ndimage import binary_dilation
 
 
 def plot_borders_and_areas(ax, label_img, areas_to_plot, color_kwargs=dict(),
-                           border_dilatation=2, area_dilatation=0,
-                           contour_version=False, cont_kwargs=dict()):
+                           cont_kwargs=dict(), label_atlas=None):
     """Plot the atlas borders and highlight areas
 
-    contour_version is a lot slower but tried to make something vectorial
+    contour_version is very slow but vectorial
 
     Args:
-        label_img: a 2d image of labels
-        areas_to_plot: a list (of list) of area ids to label.
-        color_kwargs: kwargs for imshow of the borders (useful for color specification)
-        border_dilatation: number of iteration of dilatation of borders
-        area_dilatation: number of iteration of dilatation of areas. Useful to render
-                         very thin structures
-        img, border the image label and the image of borders
+        ax (matplotlib.Axes): matplotlib axis to draw the borders
+        label_img (np.array): a 2d image of labels
+        areas_to_plot (list): a list (of list) of area ids to label. Each sublist will be
+                              grouped together (e.g. [10, [34,30]] will plot 2 contours,
+                              one for area 10 and one for the union of areas 34 and 30)
+        color_kwargs (dict): Keyword arguments for ax.contours of `areas_to_plot`
+        cont_kwargs (dict): Keyword arguments for ax.contours of borders
+        label_atlas (Brainglobe atlas): a brainglobe atlas. If provided, will add the
+                                        name of each area in the center of that area (
+                                        which might be at the midline for bilateral
+                                        labels)
+    Returns:
+        contours: contours of the filled areas
     """
     kwargs = dict(vmin=0, vmax=len(areas_to_plot) + 1)
     kwargs.update(color_kwargs)
     contours = []
-    if not contour_version:
-        img = np.zeros(label_img.shape, dtype=float)
-        for i_ar, ar_list in enumerate(areas_to_plot):
-            good = np.isin(label_img, ar_list)
-            if area_dilatation > 0:
-                good = binary_dilation(good, iterations=area_dilatation)
-            img[good] += i_ar + 1
 
-        border = get_border(label_img)
-        if border_dilatation > 0:
-            border = binary_dilation(border, iterations=border_dilatation)
-        border = np.asarray(border, dtype=float)
-        border[border == 0] = np.nan
-        img[img == 0] = np.nan
-        ax.imshow(img, **kwargs)
-        ax.imshow(border, vmin=-1, vmax=2, cmap='Greys')
-        ax.set_axis_off()
-        return img, border
-
-    # instead of plotting the border, make a contour for each area
     # frist group subgroups of areas
     new_label = np.array(label_img)
     filled_areas = []
@@ -61,9 +47,24 @@ def plot_borders_and_areas(ax, label_img, areas_to_plot, color_kwargs=dict(),
         if area in filled_areas:
             i_area = filled_areas.index(area)
             bin_image[new_label == area] += i_area
-            contours.append(ax.contourf(bin_image, levels=np.array([0.5, 1.5]) + i_area, **kwargs))
-    ax.set_aspect('equal')
-    ax.set_axis_off()
+            contours.append(ax.contourf(bin_image, levels=np.array([0.5, 1.5]) + i_area,
+                                        **kwargs))
+
+    if label_atlas is not None:
+        atlas_vals = np.sort(np.unique(label_img))
+        if atlas_vals[0] == 0:
+            atlas_vals = atlas_vals[1:]  # remove 0
+        # plot the contour at once would make a bunch of lines stuck to each other
+        atl_df = label_atlas.lookup_df
+        for ic, area_id in enumerate(atlas_vals):
+            leg = atl_df.loc[atl_df.id == area_id, 'acronym']
+            if leg.shape[0] == 0:
+                continue
+            leg = leg.iloc[0]
+            coords = np.vstack(np.where(label_img == area_id))
+            mid_point = np.nanmedian(coords, 1)
+            ax.text(mid_point[1], mid_point[0], s=leg, color='w')
+
     return contours
 
 

@@ -338,7 +338,7 @@ if PLOT_SUMMARY:
     xlabel = dict(count='', density='Dilution')
 
     fig, axes = plt.subplots(2, 1)
-    mean_only = True
+    mean_only = False
     if mean_only:
         good_areas = good_areas.groupby(['dilution', 'area']).aggregate(
             np.mean).reset_index()
