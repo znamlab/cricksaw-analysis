@@ -130,7 +130,18 @@ for _, mouse in mice.iterrows():
 
         for channel in [2, 3]:
             img_data[channel] = PROJECTION_FUNC(img_data[channel], axis=2)
-
+        zatlas = int(best_plane * mouse['Zresolution'] / atlas_size)
+        label_img = PIL.Image.fromarray(trans_atlas[zatlas, :, :])
+        label_img = np.asarray(label_img.resize(rgb.shape[1::-1],
+                                                resample=PIL.Image.NEAREST))
+        mprop = plot_prop[mouse.name]
+        if parent_area in mprop:
+            # crop img_data
+            rgb = rgb[mprop['ylim'][1]:mprop['ylim'][0],
+                      mprop['xlim'][0]:mprop['xlim'][1],
+                      :]
+            label_img = label_img[mprop['ylim'][1]:mprop['ylim'][0],
+                                  mprop['xlim'][0]:mprop['xlim'][1]]
         rgb = np.zeros(list(img_data[3].shape) + [3], dtype=np.uint8)
         contrast = np.percentile(img_data[3], [0, 99.9])
         red = np.array((img_data[3] - contrast[0]) / np.diff(contrast) * 255)
@@ -149,25 +160,18 @@ for _, mouse in mice.iterrows():
 
         ax = fig.add_subplot(2, 2, iax + 1)
         ax.imshow(rgb)
-        label_img = np.asarray(
-            PIL.Image.fromarray(
-                trans_atlas[int(best_plane * mouse['Zresolution'] / atlas_size), :, :]
-            ).resize(rgb.shape[1::-1], resample=PIL.Image.NEAREST))
 
         o = atlas_utils.plot_borders_and_areas(ax, label_img, areas_to_plot=[],
                                                color_kwargs=dict(),
                                                cont_kwargs=dict(),
                                                label_atlas=bg_atlas)
 
-        ax.plot(cells[in_plane, ml_axis], cells[in_plane, dv_axis], 'o',
-                alpha=0.2, mfc='none', mec='k')
-        ax.plot(cells[np.logical_and(ok_cells, in_plane), ml_axis],
-                cells[np.logical_and(ok_cells, in_plane), dv_axis], 'o', color='lime',
-                alpha=0.1, ms=3)
+        # ax.plot(cells[in_plane, ml_axis], cells[in_plane, dv_axis], 'o',
+        #         alpha=0.2, mfc='none', mec='k')
+        # ax.plot(cells[np.logical_and(ok_cells, in_plane), ml_axis],
+        #         cells[np.logical_and(ok_cells, in_plane), dv_axis], 'o', color='lime',
+        #         alpha=0.1, ms=3)
         ax.set_title(parent_area)
-        if parent_area in plot_prop[mouse.name]:
-            ax.set_xlim(*plot_prop[mouse.name][parent_area]['xlim'])
-            ax.set_ylim(*plot_prop[mouse.name][parent_area]['ylim'])
 
         # add a scale bar
         scale_bar = AnchoredSizeBar(ax.get_xaxis_transform(),
