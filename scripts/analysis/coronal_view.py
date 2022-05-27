@@ -1,6 +1,8 @@
 """Generate a coronal view of data"""
 import matplotlib
-matplotlib.use('macosx')
+import socket
+if socket.gethostname() == 'C02Z85AULVDC':
+    matplotlib.use('macosx')
 from pathlib import Path
 import numpy as np
 import pandas as pd
