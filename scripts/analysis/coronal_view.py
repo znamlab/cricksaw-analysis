@@ -3,6 +3,7 @@ import matplotlib
 import socket
 if socket.gethostname() == 'C02Z85AULVDC':
     matplotlib.use('macosx')
+    import matplotlib.pyplot as plt
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -19,6 +20,8 @@ import flexiznam as flz
 from flexiznam.schema import Dataset
 # local imports
 from cricksaw_analysis import atlas_utils
+# ensure txt is exported as txt in svg files:
+plt.rcParams['svg.fonttype'] = 'none'
 
 
 project = 'rabies_barcoding'
@@ -192,7 +195,7 @@ for _, mouse in mice.iterrows():
     ds.extra_attributes['projection'] = PROJECTION_FUNC.__name__
     ds.extra_attributes['pixel_size'] = pixel_size
     ds.path = ds.path.parent / ds.genealogy[-1]
-    fig.savefig(ds.path_full)
+    fig.savefig(ds.path_full, dpi=1200)
     ds.update_flexilims(mode='overwrite')
 
 
