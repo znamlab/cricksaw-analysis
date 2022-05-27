@@ -1,6 +1,6 @@
 """Generate a coronal view of data"""
 import matplotlib
-# matplotlib.use('macosx')
+matplotlib.use('macosx')
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -51,6 +51,8 @@ for filt, val in mouse_filter.items():
 fig = plt.figure()
 
 for _, mouse in mice.iterrows():
+    if mouse.name == 'BRJN101.5c':
+        continue
     # look if I have cellfinder data
     print("Doing %s" % mouse.name, flush=True)
     if mouse.name not in plot_prop:
@@ -177,7 +179,7 @@ for _, mouse in mice.iterrows():
         ax.set_aspect('equal')
         ax.set_axis_off()
 
-    fig.subplot_adjusts(top=0.05, bottom=0, left=0, right=1, wspace=0, hspace=0.05)
+    fig.subplots_adjust(top=0.05, bottom=0, left=0, right=1, wspace=0, hspace=0.05)
     # save output
     ds = Dataset.from_origin(origin_id=mouse.id, flexilims_session=flm_sess,
                              dataset_type='microscopy', conflicts='append')
