@@ -1,6 +1,6 @@
 """Generate a coronal view of data"""
 import matplotlib
-matplotlib.use('macosx')
+# matplotlib.use('macosx')
 from pathlib import Path
 import numpy as np
 import pandas as pd
