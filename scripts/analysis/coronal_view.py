@@ -28,14 +28,16 @@ plane_per_section = 5
 pixel_size = 2
 mouse_filter = dict(Dilution='1/100', Zresolution=8)
 plot_prop = {'BRJN101.5c':
-                 dict(ENT=dict(xlim=[4150, 5250], ylim=[3050, 1550], z=350),
+                 dict(ENT=dict(xlim=[4250, 5200], ylim=[3050, 1550], z=350),
                       PIR=dict(xlim=(3550, 4350), ylim=(2900, 2070), z=1180),
                       AON=dict(xlim=(2750, 4070), ylim=(2980, 1900), z=1240),
                       COA=dict(xlim=[3700, 4500], ylim=[3680, 3200], z=650),
                       ),
              'BRJN101.5d':
-                 dict(ENT=dict(xlim=[3900, 5200], ylim=[3000, 1300], z=330),
-                      PIR=dict(xlim=(3200, 4400), ylim=(3000, 2000), z=1130),),
+                 dict(ENT=dict(xlim=[3900, 5200], ylim=[3000, 1700], z=330),
+                      PIR=dict(xlim=(3400, 4300), ylim=(3000, 2200), z=1130),
+                      AON=dict(xlim=(2750, 3900), ylim=(2980, 2000), z=1200),
+                      COA=dict(xlim=[3700, 4400], ylim=[3580, 3000], z=570),),
              }
 areas = ['ENT', 'PIR', 'AON', 'COA']
 atlas_size = 10
@@ -130,18 +132,6 @@ for _, mouse in mice.iterrows():
 
         for channel in [2, 3]:
             img_data[channel] = PROJECTION_FUNC(img_data[channel], axis=2)
-        zatlas = int(best_plane * mouse['Zresolution'] / atlas_size)
-        label_img = PIL.Image.fromarray(trans_atlas[zatlas, :, :])
-        label_img = np.asarray(label_img.resize(rgb.shape[1::-1],
-                                                resample=PIL.Image.NEAREST))
-        mprop = plot_prop[mouse.name]
-        if parent_area in mprop:
-            # crop img_data
-            rgb = rgb[mprop['ylim'][1]:mprop['ylim'][0],
-                      mprop['xlim'][0]:mprop['xlim'][1],
-                      :]
-            label_img = label_img[mprop['ylim'][1]:mprop['ylim'][0],
-                                  mprop['xlim'][0]:mprop['xlim'][1]]
         rgb = np.zeros(list(img_data[3].shape) + [3], dtype=np.uint8)
         contrast = np.percentile(img_data[3], [0, 99.9])
         red = np.array((img_data[3] - contrast[0]) / np.diff(contrast) * 255)
@@ -156,6 +146,20 @@ for _, mouse in mice.iterrows():
         rgb[:, :, 0] = red
         rgb[:, :, 1] = green
         rgb[:, :, 2] = green
+
+        zatlas = int(best_plane * mouse['Zresolution'] / atlas_size)
+        label_img = PIL.Image.fromarray(trans_atlas[zatlas, :, :])
+        label_img = np.asarray(label_img.resize(rgb.shape[1::-1],
+                                                resample=PIL.Image.NEAREST))
+        mprop = plot_prop[mouse.name]
+        if parent_area in mprop:
+            # crop img_data
+            rgb = rgb[mprop['ylim'][1]:mprop['ylim'][0],
+                      mprop['xlim'][0]:mprop['xlim'][1],
+                      :]
+            label_img = label_img[mprop['ylim'][1]:mprop['ylim'][0],
+                                  mprop['xlim'][0]:mprop['xlim'][1]]
+
         in_plane = np.abs(cells[:, ap_axis] - best_plane) < 5
 
         ax = fig.add_subplot(2, 2, iax + 1)
