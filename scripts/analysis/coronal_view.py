@@ -202,6 +202,7 @@ for _, mouse in mice.iterrows():
     ds.extra_attributes['pixel_size'] = pixel_size
     ds.path = ds.path.parent / ds.genealogy[-1]
     fig.savefig(ds.path_full, dpi=1200)
+    print(ds.extra_attributes)
     ds.update_flexilims(mode='overwrite')
 
 
