@@ -168,7 +168,8 @@ for _, mouse in mice.iterrows():
 
         o = atlas_utils.plot_borders_and_areas(ax, label_img, areas_to_plot=[],
                                                color_kwargs=dict(),
-                                               cont_kwargs=dict(),
+                                               border_kwargs=dict(colors='white',
+                                                                  lw=0.5),
                                                label_atlas=bg_atlas)
 
         # ax.plot(cells[in_plane, ml_axis], cells[in_plane, dv_axis], 'o',
