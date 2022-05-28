@@ -153,12 +153,13 @@ for _, mouse in mice.iterrows():
                                                 resample=PIL.Image.NEAREST))
         mprop = plot_prop[mouse.name]
         if parent_area in mprop:
+            prop = mprop[parent_area]
             # crop img_data
-            rgb = rgb[mprop['ylim'][1]:mprop['ylim'][0],
-                      mprop['xlim'][0]:mprop['xlim'][1],
+            rgb = rgb[prop['ylim'][1]:prop['ylim'][0],
+                      prop['xlim'][0]:prop['xlim'][1],
                       :]
-            label_img = label_img[mprop['ylim'][1]:mprop['ylim'][0],
-                                  mprop['xlim'][0]:mprop['xlim'][1]]
+            label_img = label_img[prop['ylim'][1]:prop['ylim'][0],
+                                  prop['xlim'][0]:prop['xlim'][1]]
 
         in_plane = np.abs(cells[:, ap_axis] - best_plane) < 5
 
