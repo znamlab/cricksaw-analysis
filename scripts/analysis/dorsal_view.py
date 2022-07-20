@@ -4,10 +4,16 @@ Create a dorsal view projected across layers.
 Particularly useful to find blood vessel patterns
 """
 
+import matplotlib
+import socket
+if socket.gethostname() == 'C02Z85AULVDC':
+    matplotlib.use('macosx')
+
 from pathlib import Path
 import flexiznam as fzm
 import bg_space as bgs
 import bg_atlasapi as bga
+import matplotlib.pyplot as plt
 
 import numpy as np
 from napari.viewer import Viewer
@@ -16,13 +22,15 @@ import tifffile
 
 from cricksaw_analysis import atlas_utils
 
-
 REGISTERED_DATA = '/Volumes/lab-znamenskiyp/home/shared/projects/hey2_3d' \
                   '-vision_foodres_20220101/PZAH5.6a/registered_stacks/010_micron' \
-                  '/025_atlas/red/downsampled_standard.tiff'
+                  '/025_atlas/ver3/downsampled_standard_ds_PZAH5_6a_220624_160546_10' \
+                  '_10_ch02_chan_2_green.tif.tiff'
 REGISTERED_BACKGROUND_DATA = '/Volumes/lab-znamenskiyp/home/shared/projects/hey2_3d' \
                              '-vision_foodres_20220101/PZAH5.6a/registered_stacks' \
-                             '/010_micron/025_atlas/blue/downsampled_standard.tiff'
+                             '/010_micron/025_atlas/ver3/downsampled_standard.tiff'
+
+PATH_TO_SAVE = '/Users/blota/Desktop'
 ATLAS_NAME = 'allen_mouse_25um'
 NAPARI = False
 
@@ -88,7 +96,7 @@ for l in layers:
                                                               y[mask]])
         if REGISTERED_BACKGROUND_DATA is not None:
             bg_data_view[x[mask], y[mask]] = np.maximum(bg_data_view[x[mask], y[mask]],
-                                                        reg_data[x[mask],
+                                                        reg_backgrnd[x[mask],
                                                                  top_of_layer[mask] - i,
                                                                  y[mask]])
 
@@ -110,5 +118,59 @@ if NAPARI:
 
         viewer.add_labels(data=atlas_dorsal_by_layer[l], name='atlas %s' % l,
                           opacity=0.1, visible=True if l == '1' else False)
+
+if PATH_TO_SAVE is not None:
+    save_root = Path(PATH_TO_SAVE)
+    assert save_root.is_dir()
+    fig = plt.figure()
+    fig.set_size_inches([6, 7])
+    ax = fig.add_subplot(1, 1, 1)
+    fig.subplots_adjust(top=0.95, right=0.99, bottom=0.05, left=0.07)
+    midline = int(atlas_dorsal_by_layer[l].shape[1] / 2)
+    for l in layers:
+        ax.clear()
+        ax.set_aspect('equal')
+        atlas_utils.plot_borders_and_areas(ax, atlas_dorsal_by_layer[l],
+                                           areas_to_plot=[])
+        # do a version with label on right hemisphere
+        right_hem = np.zeros_like(atlas_dorsal_by_layer[l])
+        right_hem[:, midline:] = atlas_dorsal_by_layer[l][:,midline:]
+        atlas_utils.plot_borders_and_areas(ax, right_hem,
+                                           areas_to_plot=[],
+                                           label_atlas=bg_atlas)
+        img = ax.imshow(data_dorsal_by_layer[l], cmap='Greys_r')
+        ax.set_title('Layer %s' % l)
+        layer_name = l.replace('/', '_')
+        fig.savefig(save_root / ('dorsal_view_layer_%s.png' % layer_name), dpi=600)
+        fig.savefig(save_root / ('dorsal_view_layer_%s.svg' % layer_name), dpi=600)
+        if REGISTERED_BACKGROUND_DATA is not None:
+            img.remove()
+            ax.set_title('Layer %s - background' % l)
+            img = ax.imshow(bg_dorsal_by_layer[l], cmap='Greys_r')
+            fig.savefig(save_root / ('dorsal_view_layer_background_%s.png' % layer_name),
+                        dpi=600)
+            fig.savefig(save_root / ('dorsal_view_layer_background_%s.svg' % layer_name),
+                        dpi=600)
+            img.remove()
+            rgb = np.zeros(list(bg_dorsal_by_layer[l].shape) + [3],
+                           dtype=np.uint8)
+            top = np.quantile(bg_dorsal_by_layer[l], 0.99)
+            bg = bg_dorsal_by_layer[l] / top * 255
+            bg[bg > 255] = 255
+            bg = np.array(bg, dtype=np.uint8)
+            rgb[:, :, 0] = bg
+            rgb[:, :, 2] = bg
+            top = np.quantile(data_dorsal_by_layer[l], 0.99)
+            dt = data_dorsal_by_layer[l]/ top * 255
+            dt[dt > 255] = 255
+            dt = np.array(dt, dtype=np.uint8)
+
+            rgb[:, :, 1] = dt
+            img = ax.imshow(rgb)
+            ax.set_title('Layer %s - Magenta background, Green data' % l)
+            fig.savefig(save_root / ('dorsal_view_layer_rgb_%s.png' % layer_name),
+                        dpi=600)
+            fig.savefig(save_root / ('dorsal_view_layer_rgb_%s.svg' % layer_name),
+                        dpi=600)
 
 print('done')
