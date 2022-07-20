@@ -35,9 +35,12 @@ def plot_borders_and_areas(ax, label_img, areas_to_plot, color_kwargs=dict(),
     new_label = np.array(label_img)
     filled_areas = []
     for area_subgroup in areas_to_plot:
-        filled_areas.append(area_subgroup[0])
-        for area in area_subgroup:
-            new_label[new_label == area] = area_subgroup[0]
+        if hasattr(area_subgroup, '__iter__'):
+            filled_areas.append(area_subgroup[0])
+            for area in area_subgroup:
+                new_label[new_label == area] = area_subgroup[0]
+        else:
+            filled_areas.append(area_subgroup)
 
     # create an image with continuous labelling of areas
     new_ids = np.unique(new_label)
@@ -71,7 +74,8 @@ def plot_borders_and_areas(ax, label_img, areas_to_plot, color_kwargs=dict(),
             leg = leg.iloc[0]
             coords = np.vstack(np.where(label_img == area_id))
             mid_point = np.nanmedian(coords, 1)
-            ax.text(mid_point[1], mid_point[0], s=leg, color='w')
+            ax.text(mid_point[1], mid_point[0], s=leg, color='w',
+                    verticalalignment='center', horizontalalignment='center')
 
     return contours
 
