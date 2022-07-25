@@ -27,7 +27,7 @@ DATA_FOLDER = '/camp/lab/znamenskiyp/home/shared/projects/hey2_3d' \
               '/ver3'
 REGISTERED_DATA = Path(DATA_FOLDER) / 'downsampled_standard_ds_PZAH5_6a_220624_160546' \
                                       '_10_10_ch02_chan_2_green.tif.tiff'
-REGISTERED_BACKGROUND_DATA = Path(DATA_FOLDER) / 'downsample_standard.tiff'
+REGISTERED_BACKGROUND_DATA = Path(DATA_FOLDER) / 'downsampled_standard.tiff'
 
 PATH_TO_SAVE = '/camp/lab/znamenskiyp/home/shared/projects/hey2_3d' \
               '-vision_foodres_20220101/PZAH5.6a/dorsal_view/'
