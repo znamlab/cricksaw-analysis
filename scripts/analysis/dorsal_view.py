@@ -22,15 +22,15 @@ import tifffile
 
 from cricksaw_analysis import atlas_utils
 
-REGISTERED_DATA = '/Volumes/lab-znamenskiyp/home/shared/projects/hey2_3d' \
-                  '-vision_foodres_20220101/PZAH5.6a/registered_stacks/010_micron' \
-                  '/025_atlas/ver3/downsampled_standard_ds_PZAH5_6a_220624_160546_10' \
-                  '_10_ch02_chan_2_green.tif.tiff'
-REGISTERED_BACKGROUND_DATA = '/Volumes/lab-znamenskiyp/home/shared/projects/hey2_3d' \
-                             '-vision_foodres_20220101/PZAH5.6a/registered_stacks' \
-                             '/010_micron/025_atlas/ver3/downsampled_standard.tiff'
+DATA_FOLDER = '/camp/lab/znamenskiyp/home/shared/projects/hey2_3d' \
+              '-vision_foodres_20220101/PZAH5.6a/registered_stacks/010_micron/025_atlas' \
+              '/ver3'
+REGISTERED_DATA = Path(DATA_FOLDER) / 'downsampled_standard_ds_PZAH5_6a_220624_160546' \
+                                      '_10_10_ch02_chan_2_green.tif.tiff'
+REGISTERED_BACKGROUND_DATA = Path(DATA_FOLDER) / 'downsample_standard.tiff'
 
-PATH_TO_SAVE = '/Users/blota/Desktop'
+PATH_TO_SAVE = '/camp/lab/znamenskiyp/home/shared/projects/hey2_3d' \
+              '-vision_foodres_20220101/PZAH5.6a/dorsal_view/'
 ATLAS_NAME = 'allen_mouse_25um'
 NAPARI = False
 
@@ -121,6 +121,7 @@ if NAPARI:
 
 if PATH_TO_SAVE is not None:
     save_root = Path(PATH_TO_SAVE)
+    save_root.mkdir(exist_ok=True)
     assert save_root.is_dir()
     fig = plt.figure()
     fig.set_size_inches([6, 7])
