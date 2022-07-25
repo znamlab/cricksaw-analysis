@@ -198,10 +198,11 @@ for _, mouse in mice.iterrows():
     ds.genealogy = list(ds.genealogy)[:-1] + ['coronal_view_%s.svg' % ('_'.join(areas))]
     ds.extra_attributes['atlas'] = atlas_name
     ds.extra_attributes['num_slices'] = plane_per_section
-    ds.extra_attributes['projection'] = PROJECTION_FUNC.__name__
+    ds.extra_attributes['projection'] = repr(PROJECTION_FUNC)
     ds.extra_attributes['pixel_size'] = pixel_size
     ds.path = ds.path.parent / ds.genealogy[-1]
     fig.savefig(ds.path_full, dpi=1200)
+    print(ds.extra_attributes)
     ds.update_flexilims(mode='overwrite')
 
 
