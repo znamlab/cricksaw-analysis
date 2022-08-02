@@ -18,7 +18,7 @@ if machine == 'C02Z85AULVDC':
     atlas_directory = '/Users/blota/Data/ARA_CCFv3'
     raw_directory = root_directory
     processed_directory = raw_directory
-elif machine.startswith('int'):
+elif machine.startswith('int') or machine.startswith('ca'):
     # we are on camp
     root_directory = '/camp/lab/znamenskiyp/home/shared/projects/hey2_3d-vision_foodres_20220101'
     atlas_directory = '/camp/lab/znamenskiyp/home/shared/resources/cellfinder_resources/ARA_CCFv3'
