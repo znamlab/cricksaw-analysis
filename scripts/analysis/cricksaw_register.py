@@ -16,19 +16,26 @@ machine = socket.gethostname()
 if machine == 'C02Z85AULVDC':
     root_directory = '/Users/blota/Data/'
     atlas_directory = '/Users/blota/Data/ARA_CCFv3'
-    data_directory = root_directory
+    raw_directory = root_directory
+    processed_directory = raw_directory
 elif machine.startswith('int'):
     # we are on camp
     root_directory = '/camp/lab/znamenskiyp/home/shared/projects/hey2_3d-vision_foodres_20220101'
     atlas_directory = '/camp/lab/znamenskiyp/home/shared/resources/cellfinder_resources/ARA_CCFv3'
-    data_directory = '/'
+    raw_directory = root_directory
+    processed_directory = raw_directory
+elif machine == 'chainsaw':
+    winstor = '/mnt/blota/winstor/swc/mrsic_flogel/public/projects'
+    atlas_directory = '/mnt/data/Antonin/Brainsaw_temp_folder/'
+    raw_directory = '/mnt/data/Antonin/Brainsaw_temp_folder/'
 elif machine == 'blender':
     print('on blender')
     winstor = '/mnt/blota/winstor/swc/mrsic_flogel/public/projects'
     #root_directory = '/mnt/data/Antonin/Brainsaw_temp_folder/'
     atlas_directory = '/mnt/data/Antonin/Brainsaw_temp_folder/'
-    data_directory = '/mnt/data/Antonin/Brainsaw_temp_folder/'
-    # data_directory = os.path.join(winstor, 'AnBl_20180101_LPCortexSFTF/Anatomy/retro_RR')
+    raw_directory = '/mnt/data/Antonin/Brainsaw_temp_folder/'
+    processed_directory = raw_directory
+    # raw_directory = os.path.join(winstor, 'AnBl_20180101_LPCortexSFTF/Anatomy/retro_RR')
 else:
     raise (IOError('Cannot recognise machine %s' % machine))
 
@@ -68,17 +75,18 @@ if do_trans_template:
     float_atlas, translator = atlas_utils.create_float_atlas(path2atlas, path2floatatlas)
 
 for mouse_name in todo:
-    if not os.path.isdir(os.path.join(data_directory, mouse_name)):
+    if not os.path.isdir(os.path.join(raw_directory, mouse_name)):
         print('No folder for %s. Skipping\n' % mouse_name)
         continue
     print('\n\nDoing %s\n' % mouse_name)
-    root_path = os.path.join(data_directory, mouse_name)
+    raw_root_path = os.path.join(raw_directory, mouse_name)
+    processed_root_path = os.path.join(processed_directory, mouse_name)
 
     roiPtsFiles = []
     cellPtsFiles = []
     # find all roi points in the masiv directory
-    masivPath = os.path.join(data_directory, mouse_name, mouse_name + '_MaSIV')
-    cellPath = os.path.join(data_directory, 'cellfinder_res')
+    masivPath = os.path.join(processed_directory, mouse_name, mouse_name + '_MaSIV')
+    cellPath = os.path.join(processed_directory, 'cellfinder_res')
 
     if do_roi:
         if not os.path.isdir(masivPath):
@@ -104,18 +112,18 @@ for mouse_name in todo:
                     cellPtsFiles.append(cell_path)
 
     ########## Check everything is in place #############
-    path2reg = os.path.join(root_path, 'registration_%i' % atlas_size)
+    path2reg = os.path.join(processed_root_path, 'registration_%i' % atlas_size)
     if not os.path.isdir(path2reg):
         os.mkdir(path2reg)
 
     # Find data folder
-    dataPath = os.path.join(root_path, 'stitchedImages_100')
+    dataPath = os.path.join(raw_root_path, 'stitchedImages_100')
     assert os.path.isdir(dataPath)
 
     # Check that I have the recipe file
-    recipeFile = [fname for fname in os.listdir(root_path) if fname.startswith('recipe')]
+    recipeFile = [fname for fname in os.listdir(raw_root_path) if fname.startswith('recipe')]
     assert len(recipeFile) == 1
-    recipeFile = os.path.join(root_path, recipeFile[0])
+    recipeFile = os.path.join(raw_root_path, recipeFile[0])
 
     # Count channels
     chanNames = [d for d in os.listdir(dataPath) if os.path.isdir(os.path.join(dataPath, d))]
