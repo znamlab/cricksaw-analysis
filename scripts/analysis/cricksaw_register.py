@@ -17,10 +17,11 @@ if machine == 'C02Z85AULVDC':
     root_directory = '/Users/blota/Data/'
     atlas_directory = '/Users/blota/Data/ARA_CCFv3'
     data_directory = root_directory
-elif machine == 'chainsaw':
-    winstor = '/mnt/blota/winstor/swc/mrsic_flogel/public/projects'
-    atlas_directory = '/mnt/data/Antonin/Brainsaw_temp_folder/'
-    data_directory = '/mnt/data/Antonin/Brainsaw_temp_folder/'
+elif machine.startswith('int'):
+    # we are on camp
+    root_directory = '/camp/lab/znamenskiyp/home/shared/projects/hey2_3d-vision_foodres_20220101'
+    atlas_directory = '/camp/lab/znamenskiyp/home/shared/resources/cellfinder_resources/ARA_CCFv3'
+    data_directory = '/'
 elif machine == 'blender':
     print('on blender')
     winstor = '/mnt/blota/winstor/swc/mrsic_flogel/public/projects'
@@ -33,7 +34,7 @@ else:
 
 paramPath = os.path.join(atlas_directory, 'elastix_transforms/')  # path to parameter files
 
-atlas_size = 25
+atlas_size = 10
 do_downsample = False
 do_roi = False
 do_roi_processing = False  # For ROI do some extra analysis
