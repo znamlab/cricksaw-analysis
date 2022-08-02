@@ -14,45 +14,31 @@ chan2exclude = []  # MUST be string
 
 machine = socket.gethostname()
 if machine == 'C02Z85AULVDC':
-    root_directory = '/Users/blota/Data/'
+    raw_directory = '/Users/blota/Data/'
     atlas_directory = '/Users/blota/Data/ARA_CCFv3'
-    raw_directory = root_directory
     processed_directory = raw_directory
 elif machine.startswith('int'):
     # we are on camp
-    root_directory = '/camp/lab/znamenskiyp/home/shared/projects/hey2_3d-vision_foodres_20220101'
     atlas_directory = '/camp/lab/znamenskiyp/home/shared/resources/cellfinder_resources/ARA_CCFv3'
-    raw_directory = root_directory
-    processed_directory = raw_directory
-elif machine == 'chainsaw':
-    winstor = '/mnt/blota/winstor/swc/mrsic_flogel/public/projects'
-    atlas_directory = '/mnt/data/Antonin/Brainsaw_temp_folder/'
-    raw_directory = '/mnt/data/Antonin/Brainsaw_temp_folder/'
-elif machine == 'blender':
-    print('on blender')
-    winstor = '/mnt/blota/winstor/swc/mrsic_flogel/public/projects'
-    #root_directory = '/mnt/data/Antonin/Brainsaw_temp_folder/'
-    atlas_directory = '/mnt/data/Antonin/Brainsaw_temp_folder/'
-    raw_directory = '/mnt/data/Antonin/Brainsaw_temp_folder/'
-    processed_directory = raw_directory
-    # raw_directory = os.path.join(winstor, 'AnBl_20180101_LPCortexSFTF/Anatomy/retro_RR')
+    raw_directory = '/camp/lab/znamenskiyp/data/instruments/raw_data/projects/hey2_3d-vision_foodres_20220101'
+    processed_directory = '/camp/lab/znamenskiyp/home/shared/projects/hey2_3d-vision_foodres_20220101'
 else:
     raise (IOError('Cannot recognise machine %s' % machine))
 
 paramPath = os.path.join(atlas_directory, 'elastix_transforms/')  # path to parameter files
 
 atlas_size = 10
-do_downsample = False
+do_downsample = True
 do_roi = False
 do_roi_processing = False  # For ROI do some extra analysis
-do_register = False
-do_register_inverse = False
+do_register = True
+do_register_inverse = True
 do_trans_template = False
 do_trans_data = True
 # transform_list = ['translation', 'rigid', 'affine', 'bspline']
 transform_list = ['01_ARA_translate', '02_ARA_rigid', '03_ARA_affine','04_ARA_bspline']
 
-ramcheck = True
+ramcheck = False
 todo = ['PZAH5.6a']
 
 atlas_directory = os.path.join(atlas_directory, 'ARA_%i_micron_mhd' % atlas_size)
