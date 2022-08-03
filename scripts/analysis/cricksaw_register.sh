@@ -8,7 +8,7 @@
 #SBATCH -o cricksaw_reg.out
 #SBATCH -e cricksaw_reg.err
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=MYUSERNAME@crick.ac.uk
+#SBATCH --mail-user=blota@crick.ac.uk
 
 
 ml Anaconda3
@@ -18,7 +18,7 @@ source /camp/apps/eb/software/Anaconda/conda.env.sh
 echo "Loading conda environment"
 conda activate brainregister
 echo "Export library path"
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/.conda/envs/cellfinder/lib/
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/.conda/envs/brainregister/lib/
 
 echo "Running script"
 python cricksaw_register.py
