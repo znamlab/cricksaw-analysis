@@ -14,7 +14,7 @@ import flexiznam as fzm
 import bg_space as bgs
 import bg_atlasapi as bga
 import matplotlib.pyplot as plt
-
+import itk
 import numpy as np
 from napari.viewer import Viewer
 from brainglobe_napari_io.cellfinder import reader_xml
@@ -23,15 +23,17 @@ import tifffile
 from cricksaw_analysis import atlas_utils
 
 DATA_FOLDER = '/camp/lab/znamenskiyp/home/shared/projects/hey2_3d' \
-              '-vision_foodres_20220101/PZAH5.6a/registered_stacks/010_micron/025_atlas' \
-              '/ver3'
-REGISTERED_DATA = Path(DATA_FOLDER) / 'downsampled_standard_ds_PZAH5_6a_220624_160546' \
-                                      '_10_10_ch02_chan_2_green.tif.tiff'
-REGISTERED_BACKGROUND_DATA = Path(DATA_FOLDER) / 'downsampled_standard.tiff'
+              '-vision_foodres_20220101/PZAH5.6a/brainregister/brainregister_25um/sample_to_ccf'
+DATA_FOLDER = '/camp/lab/znamenskiyp/home/shared/projects/hey2_3d' \ 
+              '-vision_foodres_20220101/PZAH5.6a/registration_10/PZAH5.6as_inverse_reg__elastix_out_step01'
+#REGISTERED_DATA = Path(DATA_FOLDER) / 'CCF_ds_PZAH5_6a_220624_160546_10_10_ch01_chan_1_blue.nrrd'
+REGISTERED_DATA = Path(DATA_FOLDER) / 'PZAH5.6as_inverse_reg__registration_step01.mhd'
+REGISTERED_BACKGROUND_DATA = None # Path(DATA_FOLDER) / 'CCF_ds_PZAH5_6a_220624_160546_10_10_ch03_chan_3_red.nrrd'
 
 PATH_TO_SAVE = '/camp/lab/znamenskiyp/home/shared/projects/hey2_3d' \
               '-vision_foodres_20220101/PZAH5.6a/dorsal_view/'
-ATLAS_NAME = 'allen_mouse_25um'
+ATLAS_NAME = 'allen_mouse_10um'
+ATLAS_ANNOTATION = '/camp/lab/znamenskiyp/home/shared/resources/cellfinder_resources/ARA_CCFv3/ARA_10_micron_mhd/atlas.mhd'
 NAPARI = False
 
 # do that first to crash early if there is a display issue
@@ -42,17 +44,20 @@ print('Loading atlas')
 bg_atlas = bga.bg_atlas.BrainGlobeAtlas(ATLAS_NAME)
 # get registered data
 print('Loading img data')
-reg_data = tifffile.imread(REGISTERED_DATA)
+reg_data = itk.array_from_image(itk.imread(REGISTERED_DATA))
 if REGISTERED_BACKGROUND_DATA is not None:
     print('Loading background data')
-    reg_backgrnd = tifffile.imread(REGISTERED_BACKGROUND_DATA)
+    reg_backgrnd = itk.array_from_image(itk.imread(REGISTERED_BACKGROUND_DATA))
 
 
 # find layers
 ctx_df = atlas_utils.create_ctx_table(bg_atlas)
 layers = ['1', '2/3', '4', '5', '6a', '6b']
-peeled_atlas = bg_atlas.annotation.copy()
-
+if ATLAS_ANNOTATION is None:
+    atlas_annot =  bg_atlas.annotation.copy()
+else:
+   atlas_annot = itk.array_from_image(itk.imread(ATLAS_ANNOTATION))
+peeled_atlas = np.array(atlas_annot, copy=True)
 
 atlas_dorsal_by_layer = dict()
 data_dorsal_by_layer = dict()
@@ -67,14 +72,15 @@ top_of_layer = atlas_utils.external_view(peeled_atlas, axis='dorsal',
                                          border_only=False,
                                          get_index=True, which='first')
 for l in layers:
+    print('Doing %s' % l, flush=True)
     atlas_index[l] = top_of_layer
     layer_index = ctx_df.loc[ctx_df.layer == l, 'id'].values
     # make a dorsal view of the atlas
-    atlas_layer = np.zeros(x.shape, dtype=bg_atlas.annotation.dtype)
-    atlas_layer[x, y] = bg_atlas.annotation[x, top_of_layer, y]
+    atlas_layer = np.zeros(x.shape, dtype=atlas_annot.dtype)
+    atlas_layer[x, y] = atlas_annot[x, top_of_layer, y]
     atlas_dorsal_by_layer[l] = atlas_layer
     print('Peeling layer %s' % l, flush=True)
-    layer_mask = np.isin(bg_atlas.annotation, layer_index)
+    layer_mask = np.isin(atlas_annot, layer_index)
     peeled_atlas[layer_mask] = 0
     bottom_of_layer = atlas_utils.external_view(peeled_atlas, axis='dorsal',
                                                 border_only=False,
@@ -120,6 +126,7 @@ if NAPARI:
                           opacity=0.1, visible=True if l == '1' else False)
 
 if PATH_TO_SAVE is not None:
+    print('Saving in %s' % PATH_TO_SAVE, flush=True)
     save_root = Path(PATH_TO_SAVE)
     save_root.mkdir(exist_ok=True)
     assert save_root.is_dir()
@@ -173,5 +180,7 @@ if PATH_TO_SAVE is not None:
                         dpi=600)
             fig.savefig(save_root / ('dorsal_view_layer_rgb_%s.svg' % layer_name),
                         dpi=600)
+else:
+    print('Do not save', flush=True)
 
 print('done')
