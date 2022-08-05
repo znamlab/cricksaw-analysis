@@ -22,33 +22,34 @@ import tifffile
 
 from cricksaw_analysis import atlas_utils
 
-DATA_FOLDER = '/camp/lab/znamenskiyp/home/shared/projects/hey2_3d' \
-              '-vision_foodres_20220101/PZAH5.6a/brainregister/brainregister_25um/sample_to_ccf'
-DATA_FOLDER = '/camp/lab/znamenskiyp/home/shared/projects/hey2_3d' \ 
-              '-vision_foodres_20220101/PZAH5.6a/registration_10/PZAH5.6as_inverse_reg__elastix_out_step01'
-#REGISTERED_DATA = Path(DATA_FOLDER) / 'CCF_ds_PZAH5_6a_220624_160546_10_10_ch01_chan_1_blue.nrrd'
-REGISTERED_DATA = Path(DATA_FOLDER) / 'PZAH5.6as_inverse_reg__registration_step01.mhd'
-REGISTERED_BACKGROUND_DATA = None # Path(DATA_FOLDER) / 'CCF_ds_PZAH5_6a_220624_160546_10_10_ch03_chan_3_red.nrrd'
+DATA_FOLDER = '/Users/blota/Data/PZAH5.6a/registration_10/PZAH5.6as_inverse_reg__elastix_out_step01/'
+imgs_path = dict(red=Path(DATA_FOLDER) / 'PZAH5.6as_inverse_reg__registration_step01.mhd',
+                 blue=None,
+                 green=None)
 
-PATH_TO_SAVE = '/camp/lab/znamenskiyp/home/shared/projects/hey2_3d' \
-              '-vision_foodres_20220101/PZAH5.6a/dorsal_view/'
+PATH_TO_SAVE = '/Users/blota/Data/dorsal_view/'
 ATLAS_NAME = 'allen_mouse_10um'
-ATLAS_ANNOTATION = '/camp/lab/znamenskiyp/home/shared/resources/cellfinder_resources/ARA_CCFv3/ARA_10_micron_mhd/atlas.mhd'
+ATLAS_ANNOTATION = '/Users/blota/Data/ARA_CCFv3/ARA_10_micron_mhd/atlas.mhd'
 NAPARI = False
 
 # do that first to crash early if there is a display issue
 if NAPARI:
     viewer = Viewer()
 
+PATH_TO_SAVE = Path(PATH_TO_SAVE)
+# make sure it exists
+PATH_TO_SAVE.mkdir(exist_ok=True)
+
 print('Loading atlas')
 bg_atlas = bga.bg_atlas.BrainGlobeAtlas(ATLAS_NAME)
 # get registered data
 print('Loading img data')
-reg_data = itk.array_from_image(itk.imread(REGISTERED_DATA))
-if REGISTERED_BACKGROUND_DATA is not None:
-    print('Loading background data')
-    reg_backgrnd = itk.array_from_image(itk.imread(REGISTERED_BACKGROUND_DATA))
-
+image_volumes = dict()
+for col, pa in imgs_path.items():
+    if pa is None:
+        continue
+    print('   loading %s channel' % col)
+    image_volumes[col] = itk.array_from_image(itk.imread(str(pa)))
 
 # find layers
 ctx_df = atlas_utils.create_ctx_table(bg_atlas)
@@ -82,6 +83,7 @@ for l in layers:
     print('Peeling layer %s' % l, flush=True)
     layer_mask = np.isin(atlas_annot, layer_index)
     peeled_atlas[layer_mask] = 0
+    print('Find surface of next layer', flush=True)
     bottom_of_layer = atlas_utils.external_view(peeled_atlas, axis='dorsal',
                                                 border_only=False,
                                                 get_index=True, which='first')
@@ -89,29 +91,24 @@ for l in layers:
     thickness = bottom_of_layer - top_of_layer
     max_diff = np.max(thickness)
 
-    # make a max proj of data, iterate on all thickness value
-    reg_data_view = np.zeros(x.shape, dtype=reg_data.dtype)
-    if REGISTERED_BACKGROUND_DATA is not None:
-        bg_data_view = np.zeros(x.shape, dtype=reg_backgrnd.dtype)
-    for i in range(max_diff):
-        mask = thickness >= i
-        # for max proj
-        reg_data_view[x[mask], y[mask]] = np.maximum(reg_data_view[x[mask], y[mask]],
-                                                     reg_data[x[mask],
-                                                              top_of_layer[mask] - i,
-                                                              y[mask]])
-        if REGISTERED_BACKGROUND_DATA is not None:
-            bg_data_view[x[mask], y[mask]] = np.maximum(bg_data_view[x[mask], y[mask]],
-                                                        reg_backgrnd[x[mask],
-                                                                 top_of_layer[mask] - i,
-                                                                 y[mask]])
 
-    data_dorsal_by_layer[l] = reg_data_view
-    if REGISTERED_BACKGROUND_DATA is not None:
-        bg_dorsal_by_layer[l] = bg_data_view
-    # new top and iterate
-    top_of_layer = bottom_of_layer
-atlas_index['wm'] = bottom_of_layer
+    for color, img_volume in image_volumes.items():
+        data_view = np.zeros(x.shape, dtype=img_volume.dtype)
+        zero = img_volume.min()
+        extent = img_volume.max() - zero
+        for i in range(max_diff):
+            mask = thickness >= i
+            # for max proj
+            data_view[x[mask], y[mask]] = np.maximum(data_view[x[mask], y[mask]],
+                                                     img_volume[x[mask],
+                                                                top_of_layer[mask] + i,
+                                                                y[mask]]
+                                                     )
+        #TODO: From here the script has not been adapted to 3 colors
+        data_dorsal_by_layer[l] = data_view
+        # new top and iterate
+        top_of_layer = bottom_of_layer
+    atlas_index['wm'] = bottom_of_layer
 
 if NAPARI:
     print('Adding to napari', flush=True)
