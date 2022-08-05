@@ -6,8 +6,8 @@
 #SBATCH --gres=gpu:1
 #SBATCH -n 1
 #SBATCH -t 1-0:0 # time (D-HH:MM)
-#SBATCH -o cellfinder.out
-#SBATCH -e cellfinder.err
+#SBATCH -o brainreg.out
+#SBATCH -e brainreg.err
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=MYUSERNAME@crick.ac.uk
 #SBATCH --exclude=gpu[000-036]
