@@ -23,12 +23,12 @@ import tifffile
 from cricksaw_analysis import atlas_utils
 
 DATA_FOLDER = '/camp/lab/znamenskiyp/home/shared/projects/hey2_3d' \
-              '-vision_foodres_20220101/PZAH5.6a/brainregister/brainregister_25um/sample_to_ccf'
-DATA_FOLDER = '/camp/lab/znamenskiyp/home/shared/projects/hey2_3d' \ 
-              '-vision_foodres_20220101/PZAH5.6a/registration_10/PZAH5.6as_inverse_reg__elastix_out_step01'
-#REGISTERED_DATA = Path(DATA_FOLDER) / 'CCF_ds_PZAH5_6a_220624_160546_10_10_ch01_chan_1_blue.nrrd'
-REGISTERED_DATA = Path(DATA_FOLDER) / 'PZAH5.6as_inverse_reg__registration_step01.mhd'
-REGISTERED_BACKGROUND_DATA = None # Path(DATA_FOLDER) / 'CCF_ds_PZAH5_6a_220624_160546_10_10_ch03_chan_3_red.nrrd'
+              '-vision_foodres_20220101/PZAH5.6a/brainregister/sample_to_ccf'
+#DATA_FOLDER = '/camp/lab/znamenskiyp/home/shared/projects/hey2_3d' \
+#              '-vision_foodres_20220101/PZAH5.6a/registration_10/PZAH5.6as_inverse_reg__elastix_out_step01'
+REGISTERED_DATA = Path(DATA_FOLDER) / 'CCF_ds_PZAH5_6a_220624_160546_10_10_ch03_chan_3_red.nrrd'
+#REGISTERED_DATA = Path(DATA_FOLDER) / 'PZAH5.6as_inverse_reg__registration_step01.mhd'
+REGISTERED_BACKGROUND_DATA = Path(DATA_FOLDER) / 'CCF_ds_PZAH5_6a_220624_160546_10_10_ch02_chan_2_green.nrrd'
 
 PATH_TO_SAVE = '/camp/lab/znamenskiyp/home/shared/projects/hey2_3d' \
               '-vision_foodres_20220101/PZAH5.6a/dorsal_view/'
@@ -40,13 +40,13 @@ NAPARI = False
 if NAPARI:
     viewer = Viewer()
 
-print('Loading atlas')
+print('Loading atlas', flush=True)
 bg_atlas = bga.bg_atlas.BrainGlobeAtlas(ATLAS_NAME)
 # get registered data
-print('Loading img data')
+print('Loading img data', flush=True)
 reg_data = itk.array_from_image(itk.imread(REGISTERED_DATA))
 if REGISTERED_BACKGROUND_DATA is not None:
-    print('Loading background data')
+    print('Loading background data', flush=True)
     reg_backgrnd = itk.array_from_image(itk.imread(REGISTERED_BACKGROUND_DATA))
 
 
@@ -87,8 +87,11 @@ for l in layers:
                                                 get_index=True, which='first')
 
     thickness = bottom_of_layer - top_of_layer
+    # force to look at 200um
+    # thickness = np.zeros_like(bottom_of_layer) + 20
     max_diff = np.max(thickness)
-
+    print('    Thickness: avg {}, max {}'.format(np.mean(thickness[thickness!=0]),
+                                                 np.max(thickness)))
     # make a max proj of data, iterate on all thickness value
     reg_data_view = np.zeros(x.shape, dtype=reg_data.dtype)
     if REGISTERED_BACKGROUND_DATA is not None:
@@ -110,7 +113,8 @@ for l in layers:
     if REGISTERED_BACKGROUND_DATA is not None:
         bg_dorsal_by_layer[l] = bg_data_view
     # new top and iterate
-    top_of_layer = bottom_of_layer
+    # XX KEEP GOING FROM SURFACE
+    #top_of_layer = bottom_of_layer
 atlas_index['wm'] = bottom_of_layer
 
 if NAPARI:
@@ -146,7 +150,8 @@ if PATH_TO_SAVE is not None:
         atlas_utils.plot_borders_and_areas(ax, right_hem,
                                            areas_to_plot=[],
                                            label_atlas=bg_atlas)
-        img = ax.imshow(data_dorsal_by_layer[l], cmap='Greys_r')
+        top = np.quantile(bg_dorsal_by_layer[l], 0.99)
+        img = ax.imshow(data_dorsal_by_layer[l], cmap='Greys_r', vmax=top)
         ax.set_title('Layer %s' % l)
         layer_name = l.replace('/', '_')
         fig.savefig(save_root / ('dorsal_view_layer_%s.png' % layer_name), dpi=600)
@@ -154,7 +159,8 @@ if PATH_TO_SAVE is not None:
         if REGISTERED_BACKGROUND_DATA is not None:
             img.remove()
             ax.set_title('Layer %s - background' % l)
-            img = ax.imshow(bg_dorsal_by_layer[l], cmap='Greys_r')
+            top = np.quantile(bg_dorsal_by_layer[l], 0.99)
+            img = ax.imshow(bg_dorsal_by_layer[l], cmap='Greys_r', vmax=top)
             fig.savefig(save_root / ('dorsal_view_layer_background_%s.png' % layer_name),
                         dpi=600)
             fig.savefig(save_root / ('dorsal_view_layer_background_%s.svg' % layer_name),
