@@ -60,6 +60,11 @@ if do_trans_template:
     path2floatatlas = os.path.join(atlas_directory, 'float_atlas.mhd')
     float_atlas, translator = atlas_utils.create_float_atlas(path2atlas, path2floatatlas)
 
+# Check that I can run transformix
+error = os.system('transformix')
+if error:
+    raise SystemError('Cannot find transformix')
+
 for mouse_name in todo:
     if not os.path.isdir(os.path.join(raw_directory, mouse_name)):
         print('No folder for %s. Skipping\n' % mouse_name)

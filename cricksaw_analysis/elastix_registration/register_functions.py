@@ -66,18 +66,21 @@ def apply_registration(transform_folder, path_to_image, root_name, suffix='', in
         # # Do the transformation
         # # There are nasty bugs in SimpleElastix. That fails with segfault:
         # # (see https: // github.com / SuperElastix / SimpleElastix / issues / 113)
-        transformix_image_filter = SimpleITK.TransformixImageFilter()
-        transformix_image_filter.SetTransformParameterMap(SimpleITK.ReadParameterFile(trans_param_file))
-        transformix_image_filter.SetMovingImage(SimpleITK.ReadImage(path_to_image))
-        transformix_image_filter.SetOutputDirectory(out_transformix_folder)
-        output = transformix_image_filter.Execute()
-        # # So do it in bash
-        #bashcommand = r'transformix -in %s -tp %s -out %s' % (path_to_image,
-        # trans_param_file, out_transformix_folder)
-        #print('    Executing: %s' % bashcommand)
-        #os.system(bashcommand)
+        # transformix_image_filter = SimpleITK.TransformixImageFilter()
+        # transformix_image_filter.SetTransformParameterMap(SimpleITK.ReadParameterFile(trans_param_file))
+        # transformix_image_filter.SetMovingImage(SimpleITK.ReadImage(path_to_image))
+        # transformix_image_filter.SetOutputDirectory(out_transformix_folder)
+        # output = transformix_image_filter.Execute()
+        # img = transformix_image_filter.GetResultImage()
 
-        # path_to_image = os.path.join(out_transformix_folder, 'result.mhd')
+        # So do it in bash
+        bashcommand = r'transformix -in %s -tp %s -out %s' % (path_to_image,
+                                                              trans_param_file,
+                                                              out_transformix_folder)
+        print('    Executing: %s' % bashcommand)
+        os.system(bashcommand)
+
+        path_to_image = os.path.join(out_transformix_folder, 'result.mhd')
 
     # After make a copy of the last transform
     # Read the output
