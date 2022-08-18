@@ -27,19 +27,20 @@ else:
 
 paramPath = os.path.join(atlas_directory, 'elastix_transforms/')  # path to parameter files
 
+transformix_command = r"singularity run /camp/lab/znamenskiyp/home/shared/resources/elastix/elastix_5.0.1.sif transformix"
 atlas_size = 10
 do_downsample = True
 do_roi = False
 do_roi_processing = False  # For ROI do some extra analysis
 do_register = True
 do_register_inverse = True
-do_trans_template = False
+do_trans_template = True
 do_trans_data = True
 # transform_list = ['translation', 'rigid', 'affine', 'bspline']
 transform_list = ['01_ARA_translate', '02_ARA_rigid', '03_ARA_affine','04_ARA_bspline']
 
 ramcheck = False
-todo = ['PZAH5.6a']
+todo = ['PZAH5.6a', 'PZAH5.6b']
 
 atlas_directory = os.path.join(atlas_directory, 'ARA_%i_micron_mhd' % atlas_size)
 path2template = os.path.join(atlas_directory, 'template.mhd')
@@ -61,9 +62,11 @@ if do_trans_template:
     float_atlas, translator = atlas_utils.create_float_atlas(path2atlas, path2floatatlas)
 
 # Check that I can run transformix
-error = os.system('transformix')
+error = os.system(transformix_command)
 if error:
-    raise SystemError('Cannot find transformix')
+    raise SystemError('Cannot find stransformix')
+else:
+    print('Transformix is working... keep on')
 
 for mouse_name in todo:
     if not os.path.isdir(os.path.join(raw_directory, mouse_name)):
