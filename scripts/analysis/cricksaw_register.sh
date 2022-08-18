@@ -12,6 +12,7 @@
 
 
 ml Anaconda3
+ml Singularity
 echo 'Sourcing conda'
 source /camp/apps/eb/software/Anaconda/conda.env.sh
 
@@ -19,6 +20,11 @@ echo "Loading conda environment"
 conda activate brainregister
 echo "Export library path"
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/.conda/envs/brainregister/lib/
+
+echo "Create elastix aliases"
+elastix_folder="/camp/home/blota/home/shared/resources/elastix/"
+alias transformix="singularity run $elastix_folder/elastix_5.0.1.sif $elastix_folder/transformix"
+alias elastix="singularity run $elastix_folder/elastix_5.0.1.sif $elastix_folder/elastix"
 
 echo "Running script"
 python cricksaw_register.py
