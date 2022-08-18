@@ -263,20 +263,25 @@ for mouse_name in todo:
                 break
         spacing = tuple(str(1) for i in range(3))  # was atlas_size / 25 when I register at 25 and transform at 10
         register_functions.apply_registration(path2reg, path2template, mouse_name, suffix='_tpl%ium' % atlas_size,
-                                              int_image=False, spacing=spacing, size=mhd_size)
+                                              int_image=False, spacing=spacing,
+                                              size=mhd_size,
+                                              transformix_command=transformix_command)
         reg_float_atlas, path_to_reg_float = register_functions.apply_registration(path2reg, path2floatatlas,
                                                                                    root_name=mouse_name,
                                                                                    suffix='_tpl%ium' % atlas_size,
                                                                                    int_image=True,
-                                                                                   spacing=spacing, size=mhd_size)
+                                                                                   spacing=spacing, size=mhd_size,
+                                              transformix_command=transformix_command)
         # now translate back
         path_to_reg_atlas = path_to_reg_float.replace('float_', '')
         atlas_utils.translate_atlas(reg_float_atlas, translator, path_to_reg_atlas)
 
         register_functions.apply_registration(path2reg, path2borders, mouse_name, suffix='_tpl%ium' % atlas_size,
-                                              int_image=False, spacing=spacing, size=mhd_size)
+                                              int_image=False, spacing=spacing, size=mhd_size,
+                                              transformix_command=transformix_command)
         register_functions.apply_registration(path2reg, path2borders_withAL, mouse_name, suffix='_tpl%ium' % atlas_size,
-                                              int_image=False, spacing=spacing, size=mhd_size)
+                                              int_image=False, spacing=spacing, size=mhd_size,
+                                              transformix_command=transformix_command)
 
     if do_trans_data:
         spacing = tuple(str(1) for i in range(3))  # was atlas_size / 25 when I register at 25 and transform at 10
@@ -291,5 +296,6 @@ for mouse_name in todo:
                     break
             register_functions.apply_registration(path2reg, downsample_stack, '%ss_inverse_reg_' % mouse_name,
                                                   suffix='_to_%ium_atlas' % atlas_size,
-                                                  int_image=False, spacing=spacing, size=mhd_size)
+                                                  int_image=False, spacing=spacing, size=mhd_size,
+                                              transformix_command=transformix_command)
 print('Done!')
