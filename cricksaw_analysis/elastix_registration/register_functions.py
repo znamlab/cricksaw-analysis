@@ -12,7 +12,9 @@ import SimpleITK
 from numpy import argmax, vstack, array
 
 
-def apply_registration(transform_folder, path_to_image, root_name, suffix='', int_image=False, spacing=None, size=None):
+def apply_registration(transform_folder, path_to_image, root_name, suffix='',
+                       int_image=False, spacing=None, size=None,,
+                                              transformix_command='transformix'):
     """ Apply registration to an image
 
     :param transform_folder: folder to look for elastix transform
@@ -74,9 +76,10 @@ def apply_registration(transform_folder, path_to_image, root_name, suffix='', in
         # img = transformix_image_filter.GetResultImage()
 
         # So do it in bash
-        bashcommand = r'transformix -in %s -tp %s -out %s' % (path_to_image,
-                                                              trans_param_file,
-                                                              out_transformix_folder)
+        bashcommand = r'%s -in %s -tp %s -out %s' % (transformix_command,
+                                                     path_to_image,
+                                                     trans_param_file,
+                                                     out_transformix_folder)
         print('    Executing: %s' % bashcommand)
         os.system(bashcommand)
 
