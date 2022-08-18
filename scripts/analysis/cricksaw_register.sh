@@ -22,9 +22,12 @@ echo "Export library path"
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/.conda/envs/brainregister/lib/
 
 echo "Create elastix aliases"
-elastix_folder="/camp/home/blota/home/shared/resources/elastix/"
-alias transformix="singularity run $elastix_folder/elastix_5.0.1.sif $elastix_folder/transformix"
-alias elastix="singularity run $elastix_folder/elastix_5.0.1.sif $elastix_folder/elastix"
+elastix_folder="/camp/home/blota/home/shared/resources/elastix"
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$elastix_folder/lib/
+export PATH=$PATH:$elastix_folder/bin/
+
+alias stransformix="singularity run $elastix_folder/elastix_5.0.1.sif transformix"
+alias selastix="singularity run $elastix_folder/elastix_5.0.1.sif elastix"
 
 echo "Running script"
 python cricksaw_register.py
