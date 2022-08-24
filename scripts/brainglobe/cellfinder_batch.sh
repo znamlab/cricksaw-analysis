@@ -10,7 +10,6 @@
 #SBATCH -e cellfinder.err
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=MYUSERNAME@crick.ac.uk
-#SBATCH --exclude=gpu[000-036]
 
 root_path="/camp/lab/znamenskiyp/data/instruments/raw_data/projects/"
 project="rabies_barcoding"
