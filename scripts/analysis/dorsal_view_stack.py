@@ -16,14 +16,14 @@ import numpy as np
 from napari.viewer import Viewer
 from cricksaw_analysis import atlas_utils
 
-DATA_FOLDER = '/Users/blota/Data/PZAH5.6a/registration_10/PZAH5.6as_inverse_reg__elastix_out_step01/'
-imgs_path = dict(red=Path(DATA_FOLDER) / 'PZAH5.6as_inverse_reg__registration_step01.mhd',
+DATA_FOLDER = '/Users/blota/Data/PZAH5.6b/brainreg_results/'
+imgs_path = dict(red=Path(DATA_FOLDER) / 'downsampled_standard_3.tiff',
                  blue=None,
                  green=None)
 
-PATH_TO_SAVE = '/Users/blota/Data/dorsal_view/'
+PATH_TO_SAVE = '/Users/blota/Data/dorsal_view_brainreg_chan3/stack'
 ATLAS_NAME = 'allen_mouse_10um'
-ATLAS_ANNOTATION = '/Users/blota/Data/ARA_CCFv3/ARA_10_micron_mhd/atlas.mhd'
+ATLAS_ANNOTATION = None #'/Users/blota/Data/ARA_CCFv3/ARA_10_micron_mhd/atlas.mhd'
 NAPARI = False
 
 # do that first to crash early if there is a display issue
@@ -47,9 +47,9 @@ for col, pa in imgs_path.items():
 
 # find layers
 ctx_df = atlas_utils.create_ctx_table(bg_atlas)
-layers = ['1', '2/3', '4', '5', '6a', '6b']
+layers = ['1']
 if ATLAS_ANNOTATION is None:
-    atlas_annot =  bg_atlas.annotation.copy()
+    atlas_annot = bg_atlas.annotation.copy()
 else:
    atlas_annot = itk.array_from_image(itk.imread(ATLAS_ANNOTATION))
 peeled_atlas = np.array(atlas_annot, copy=True)
@@ -93,7 +93,7 @@ for l in layers:
         for name, i in enumerate(range(-10, 30)):
             img = img_volume[x, top_of_layer + i, y]
             img = (img - zero) * (65536 / extent.max())
-            img = np.array(img , dtype='uint16')
+            img = np.array(img, dtype='uint16')
             itk.imwrite(itk.image_from_array(img),
                         PATH_TO_SAVE / ('dorsal_view_%02d.png' % name))
         # do the extended depth of focus in FIJI
