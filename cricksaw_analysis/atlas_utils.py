@@ -127,6 +127,37 @@ def create_ctx_table(atlas=None):
     return pd.DataFrame(ctx_df)
 
 
+def peel_atlas(atlas, peel_list, axis='dorsal', get_index=False, which='first',
+               verbose=True):
+    """Remove sequentially areas and generate external view
+
+    This function will make an external view, remove first group of IDs in peel_list, make
+    an external view and repeat. This effectively peels the atlas bit by bits.
+
+    It returns the atlas ID in
+
+    Args:
+        atlas: annotation volume
+        peel_list: list (of list) of area IDs to sequentially remove
+
+    Returns:
+        peeled_atlas_id: len(peel_list) list of external view with either the atlas ID
+                         of each view (default, if get_index=False) or the index
+                         generating this view
+    """
+    peeled_atlas = np.array(atlas, copy=True)  # make a copy to remove layers
+    out = []
+    for peel_index, atlas_ids in enumerate(peel_list):
+        if verbose:
+            print('Peeling level %d/%d' % (peel_index + 1, len(peel_list)), flush=True)
+        layer_mask = np.isin(atlas, atlas_ids)
+        peeled_atlas[layer_mask] = 0
+        if verbose:
+            print('   external view')
+            out.append(external_view(atlas, axis, get_index=get_index, which=which))
+    return out
+
+
 def external_view(atlas, axis='dorsal', border_only=False, get_index=False,
                   which='first'):
     """Get a view from atlas from one side
