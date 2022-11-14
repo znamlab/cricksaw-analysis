@@ -10,13 +10,13 @@
 #SBATCH -e brainreg.err
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=MYUSERNAME@crick.ac.uk
-#SBATCH --exclude=gpu[000-036]
 
 root_path="/camp/lab/znamenskiyp/data/instruments/raw_data/projects/"
 project="hey2_3d-vision_foodres_20220101"
-mouse="PZAH5.6a"
-cell_file="$root_path/$project/$mouse/stitchedImages_100/3"
-background_file="$root_path/$project/$mouse/stitchedImages_100/2"
+mouse="PZAH6.4b"
+subfolder="brainsaw"
+red_folder="$root_path/$project/$mouse/$subfolder/stitchedImages_100/3"
+green_folder="$root_path/$project/$mouse/$subfolder/stitchedImages_100/2"
 atlas="allen_mouse_10um"
 output_dir="/camp/lab/znamenskiyp/home/shared/projects/$project/$mouse/brainreg_results"
 
@@ -31,4 +31,4 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/.conda/envs/cellfinder/lib/
 
 echo "Running brainreg"
 # Just an example. See the user guide for the specific parameters
-brainreg $background_file $output_dir -d $cell_file -v 25 2 2 --orientation psl  --atlas $atlas
+brainreg $red_folder $output_dir -a $green_folder -v 8 2 2 --orientation psl  --atlas $atlas
