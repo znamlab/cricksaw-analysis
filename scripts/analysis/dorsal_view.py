@@ -70,6 +70,43 @@ PATH_TO_SAVE.mkdir(exist_ok=True)
 
 print("Loading atlas")
 bg_atlas = bga.bg_atlas.BrainGlobeAtlas(ATLAS_NAME)
+
+# find layers
+ctx_df = atlas_utils.create_ctx_table(bg_atlas)
+layers = ["surface", "1", "2/3", "4", "5", "6a", "6b"]
+if ATLAS_ANNOTATION is None:
+    atlas_annot = bg_atlas.annotation
+else:
+    atlas_annot = itk.array_from_image(itk.imread(ATLAS_ANNOTATION))
+
+# get the index of the layers, including surface
+peel_atlas_ids = []
+for l in layers:
+    if l == "surface":
+        peel_atlas_ids.append([])
+        continue
+    peel_atlas_ids.append(ctx_df.loc[ctx_df.layer == l, "id"].values)
+
+peeled_cortical_ids = None
+if PEELED_SAVE_PATH is not None:
+    target = Path(PEELED_SAVE_PATH) / ("peeled_index_%s.npz" % ATLAS_NAME)
+    if target.is_file():
+        reloaded = np.load(target)
+        if all([l in reloaded for l in layers]):
+            peeled_cortical_ids = [reloaded[l] for l in layers]
+
+if peeled_cortical_ids is None:
+    peeled_cortical_ids = atlas_utils.peel_atlas(
+        atlas_annot,
+        peel_atlas_ids,
+        axis="dorsal",
+        get_index=True,
+        which="first",
+        verbose=True,
+    )
+    if PEELED_SAVE_PATH is not None:
+        np.savez(target, **{l: p for l, p in zip(layers, peeled_cortical_ids)})
+
 # get registered data
 print("Loading img data")
 image_volumes = dict()
@@ -89,12 +126,10 @@ else:
 peeled_atlas = np.array(atlas_annot, copy=True)
 
 atlas_dorsal_by_layer = dict()
-data_dorsal_by_layer = dict()
-bg_dorsal_by_layer = dict()
+data_dorsal_by_layer = {c: dict() for c in image_volumes}
 atlas_index = dict()
-
 # we will have dorsal views, so size of shape[0] x shape[2]
-x, y = np.meshgrid(*[np.arange(bg_atlas.shape[i]) for i in [0, 2]])
+x, y = np.meshgrid(*[np.arange(s) for s in peeled_cortical_ids[0].shape])
 x = np.array(x, dtype=int).T
 y = np.array(y, dtype=int).T
 if layers[0] == "above":
