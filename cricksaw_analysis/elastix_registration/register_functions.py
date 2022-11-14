@@ -13,7 +13,7 @@ from numpy import argmax, vstack, array
 
 
 def apply_registration(transform_folder, path_to_image, root_name, suffix='',
-                       int_image=False, spacing=None, size=None,,
+                       int_image=False, spacing=None, size=None,
                                               transformix_command='transformix'):
     """ Apply registration to an image
 
