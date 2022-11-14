@@ -26,8 +26,6 @@ elastix_folder="/camp/home/blota/home/shared/resources/elastix"
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$elastix_folder/lib/
 export PATH=$PATH:$elastix_folder/bin/
 
-alias stransformix="singularity run $elastix_folder/elastix_5.0.1.sif transformix"
-alias selastix="singularity run $elastix_folder/elastix_5.0.1.sif elastix"
 
 echo "Running script"
 python cricksaw_register.py
