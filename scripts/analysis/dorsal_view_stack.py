@@ -25,7 +25,7 @@ REGISTRATION = "brainreg"
 ATLAS_SIZE = 10
 
 if REGISTRATION == "brainreg":
-    DATA_FOLDER = PROCESSED / PROJECT / MOUSE / "brainreg_results"
+    DATA_FOLDER = PROCESSED / PROJECT / MOUSE / "brainreg_results" / "from_downsampled"
     imgs_path = dict(
         red=Path(DATA_FOLDER) / "downsampled_standard.tiff",
         blue=None,
@@ -76,7 +76,7 @@ for col, pa in imgs_path.items():
 
 # find layers
 ctx_df = atlas_utils.create_ctx_table(bg_atlas)
-layers = ["1", "2/3", "4", "5", "6a", "6b"]
+layers = ["1"]
 if ATLAS_ANNOTATION is None:
     atlas_annot = bg_atlas.annotation.copy()
 else:
@@ -117,12 +117,12 @@ for l in layers:
     # save a stack
     for color, img_volume in image_volumes.items():
         data_view = np.zeros(x.shape, dtype=img_volume.dtype)
-        zero = img_volume.min()
-        extent = img_volume.max() - zero
+        zero, maxval_brain = np.quantile(img_volume, [0.0001, 0.9999])
+        extent = maxval_brain - zero
         for name, i in enumerate(range(-10, 30)):
             img = img_volume[x, top_of_layer + i, y]
-            img = (img - zero) * (65536 / extent.max())
-            img = np.array(img, dtype="uint16")
+            img = (img - zero) * (2**16 / extent.max())
+            img = np.array(np.clip(img, 0, 2**16), dtype="uint16")
             itk.imwrite(
                 itk.image_from_array(img),
                 PATH_TO_SAVE

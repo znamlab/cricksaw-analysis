@@ -25,12 +25,15 @@ from cricksaw_analysis import atlas_utils
 
 PROCESSED = Path("/camp/lab/znamenskiyp/home/shared/projects")
 PROJECT = "hey2_3d-vision_foodres_20220101"
-MOUSE = "PZAG3.4f"
+MOUSE = "PZAH6.4b"
 REGISTRATION = "brainreg"
 ATLAS_SIZE = 10
+PEELED_SAVE_PATH = None
+PROJECTION = "max"
+SAVE_SVG = False
 
 if REGISTRATION == "brainreg":
-    DATA_FOLDER = PROCESSED / PROJECT / MOUSE / "brainreg_results"
+    DATA_FOLDER = PROCESSED / PROJECT / MOUSE / "brainreg_results" / "from_downsampled"
     imgs_path = dict(
         red=Path(DATA_FOLDER) / "downsampled_standard.tiff",
         blue=None,
@@ -56,6 +59,9 @@ else:
 PATH_TO_SAVE = DATA_FOLDER / "dorsal_view"
 ATLAS_NAME = "allen_mouse_%dum" % ATLAS_SIZE
 NAPARI = False
+
+projs = dict(max=np.maximum, min=np.minimum, mean=np.add, sum=np.add)
+projection_function = projs[PROJECTION.lower()]
 
 if not PATH_TO_SAVE.is_dir():
     PATH_TO_SAVE.mkdir()
@@ -118,7 +124,7 @@ for col, pa in imgs_path.items():
 
 # find layers
 ctx_df = atlas_utils.create_ctx_table(bg_atlas)
-layers = ["above", "1", "2/3", "4", "5", "6a", "6b"]
+layers = ["0", "1", "2/3", "4", "5", "6a", "6b"]
 if ATLAS_ANNOTATION is None:
     atlas_annot = bg_atlas.annotation.copy()
 else:
@@ -132,7 +138,7 @@ atlas_index = dict()
 x, y = np.meshgrid(*[np.arange(s) for s in peeled_cortical_ids[0].shape])
 x = np.array(x, dtype=int).T
 y = np.array(y, dtype=int).T
-if layers[0] == "above":
+if layers[0] == "0":
     top_of_layer = np.zeros(x.shape, dtype=int)
 else:
     top_of_layer = atlas_utils.external_view(
@@ -146,7 +152,7 @@ for l in layers:
     atlas_layer[x, y] = atlas_annot[x, top_of_layer, y]
     atlas_dorsal_by_layer[l] = atlas_layer
 
-    if l == "above":
+    if l == "0":
         # We don't change peeled_atlas, we will jsut look at the surface of registartion
         pass
     else:
@@ -170,7 +176,7 @@ for l in layers:
         for i in range(max_diff):
             mask = thickness >= i
             # for max proj
-            data_view[x[mask], y[mask]] = np.maximum(
+            data_view[x[mask], y[mask]] = projection_function(
                 data_view[x[mask], y[mask]],
                 img_volume[
                     x[mask],
@@ -178,6 +184,10 @@ for l in layers:
                     y[mask],
                 ],
             )
+        if PROJECTION == "mean":
+            data_view = np.array(data_view, dtype=float)
+            data_view[thickness != 0] /= thickness[thickness != 0]
+            data_view = np.array(data_view, dtype=img_volume.dtype)
         if l not in data_dorsal_by_layer:
             data_dorsal_by_layer[l] = dict()
         data_dorsal_by_layer[l][color] = data_view
@@ -189,6 +199,7 @@ for l in layers:
 
 if NAPARI:
     print("Adding to napari", flush=True)
+    raise NotImplementedError("Needs to be adapted to 3 colors")
     for l in layers[::-1]:
         viewer.add_image(
             data=bg_dorsal_by_layer[l],
@@ -225,7 +236,7 @@ if PATH_TO_SAVE is not None:
     midline = int(atlas_dorsal_by_layer[l].shape[1] / 2)
     for l in layers:
         # decide which layer of the atlas we will plot
-        atlas_layer = l if l != "above" else "1"
+        atlas_layer = l if l != "0" else "1"
         for color in image_volumes.keys():
             data_this_color = data_dorsal_by_layer[l][color]
             ax.clear()
@@ -243,13 +254,22 @@ if PATH_TO_SAVE is not None:
             ax.set_title("Layer %s" % l)
             layer_name = l.replace("/", "_")
             fig.savefig(
-                save_root / ("dorsal_view_layer_%s_%s.png" % (layer_name, color)),
+                save_root
+                / (
+                    "dorsal_view_%s_proj_layer_%s_%s.png"
+                    % (PROJECTION, layer_name, color)
+                ),
                 dpi=600,
             )
-            fig.savefig(
-                save_root / ("dorsal_view_layer_%s_%s.svg" % (layer_name, color)),
-                dpi=600,
-            )
+            if SAVE_SVG:
+                fig.savefig(
+                    save_root
+                    / (
+                        "dorsal_view_%s_proj_layer_%s_%s.svg"
+                        % (PROJECTION, layer_name, color)
+                    ),
+                    dpi=600,
+                )
 
         if len(data_dorsal_by_layer[l]) > 1:
             print("Making RGB image for layer %s" % l)
@@ -268,11 +288,19 @@ if PATH_TO_SAVE is not None:
             img = ax.imshow(rgb)
             ax.set_title("Layer %s - RGB " % l)
             fig.savefig(
-                save_root / ("dorsal_view_layer_rgb_%s.png" % layer_name), dpi=600
+                save_root
+                / ("dorsal_view_%s_proj_layer_%s_rgb.png" % (PROJECTION, layer_name)),
+                dpi=600,
             )
-            fig.savefig(
-                save_root / ("dorsal_view_layer_rgb_%s.svg" % layer_name), dpi=600
-            )
+            if SAVE_SVG:
+                fig.savefig(
+                    save_root
+                    / (
+                        "dorsal_view_%s_proj_layer_%s_rgb.svg"
+                        % (PROJECTION, layer_name)
+                    ),
+                    dpi=600,
+                )
 else:
     print("Do not save", flush=True)
 
