@@ -5,8 +5,8 @@
 #SBATCH --mem 128G # memory pool for all cores
 #SBATCH -n 10  # maximum number of tasks
 #SBATCH -t 1-0:0 # time (D-HH:MM)
-#SBATCH -o cellfinder.out
-#SBATCH -e cellfinder.err
+#SBATCH -o dorsal_view.out
+#SBATCH -e dorsal_view.err
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=MYUSERNAME@crick.ac.uk
 

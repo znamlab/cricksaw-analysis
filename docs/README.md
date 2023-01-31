@@ -1,9 +1,15 @@
 # Docs
 
-Put your docs here. If you'd like to generate sphinx docs, `cd` into this directory and run:
+Analysis functions for cricksaw data
 
-```
-pip install sphinx
-sphinx-quickstart
-make html
-```
+## Installation
+
+### Main functions
+
+`pip install 'path/to/cricksaw/analysis'`
+
+### Elastix
+
+Running elastix on camp requires a singularity container and elastix binaries
+that are both in `/camp/home/blota/home/shared/resources/elastix`. See 
+`scripts/cricksaw-register.sh` for an example of how to use them.
