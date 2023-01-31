@@ -6,4 +6,4 @@ tifffile
 brainglobe_napari_io
 cellfinder
 git+ssh://git@github.com/znamlab/flexiznam.git@dev#flexiznam
-
+SimpleITK-Elastix
