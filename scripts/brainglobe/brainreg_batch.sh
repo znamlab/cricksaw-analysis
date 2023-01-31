@@ -11,6 +11,7 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=MYUSERNAME@crick.ac.uk
 
+
 root_path="/camp/lab/znamenskiyp/data/instruments/raw_data/projects/"
 project="hey2_3d-vision_foodres_20220101"
 mouse="PZAH6.4b"
