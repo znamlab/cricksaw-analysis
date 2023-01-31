@@ -18,3 +18,15 @@ Following the first steps, you might get some library errors:
 
 This can be fixed by pointing to the library folder of your cuda environment:
 `export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/.conda/envs/cellfinder/lib/`
+
+## Cricksa analysis
+
+Easy:
+
+`pip install 'path/to/cricksaw/analysis'`
+
+# Elastix on camp
+
+Running elastix on camp requires a singularity container and elastix binaries
+that are both in `/camp/home/blota/home/shared/resources/elastix`. See 
+`scripts/analysis/cricksaw-register.sh` for an example of how to use them.
