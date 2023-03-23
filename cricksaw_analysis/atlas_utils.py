@@ -7,7 +7,7 @@ from scipy.ndimage import binary_dilation
 def plot_borders_and_areas(
     ax,
     label_img,
-    areas_to_plot,
+    areas_to_plot=None,
     color_kwargs=dict(),
     border_kwargs=dict(),
     label_atlas=None,
@@ -19,18 +19,21 @@ def plot_borders_and_areas(
     Args:
         ax (matplotlib.Axes): matplotlib axis to draw the borders
         label_img (np.array): a 2d image of labels
-        areas_to_plot (list): a list (of list) of area ids to label. Each sublist will be
-                              grouped together (e.g. [10, [34,30]] will plot 2 contours,
-                              one for area 10 and one for the union of areas 34 and 30)
-        color_kwargs (dict): Keyword arguments for ax.contours of `areas_to_plot`
-        border_kwargs (dict): Keyword arguments for ax.contours of borders
-        label_atlas (Brainglobe atlas): a brainglobe atlas. If provided, will add the
-                                        name of each area in the center of that area (
-                                        which might be at the midline for bilateral
-                                        labels)
+        areas_to_plot (list, optional): a list (of list) of area ids to label. Each
+            sublist will be grouped together (e.g. [10, [34,30]] will plot 2 contours,
+            one for area 10 and one for the union of areas 34 and 30). If `label_atlas`
+            is provided, `areas_to_plot` can also be a list of area acronyms
+        color_kwargs (dict, optional): Keyword arguments for ax.contours of `areas_to_plot`
+        border_kwargs (dict, optional): Keyword arguments for ax.contours of borders
+        label_atlas (Brainglobe atlas, optional): a brainglobe atlas. If provided, will add the
+            name of each area in the center of that area (which might be at the midline
+            for bilateral labels)
     Returns:
         contours: contours of the filled areas
     """
+    if areas_to_plot is None:
+        areas_to_plot = []
+
     kwargs = dict(vmin=0, vmax=len(areas_to_plot) + 1)
     kwargs.update(color_kwargs)
     cont_kwargs = dict(colors="Grey")
@@ -61,8 +64,21 @@ def plot_borders_and_areas(
 
     for area in filled_areas:
         # create an image with 1 in the area and 0 everywhere else
+        if isinstance(area, str):
+            if label_atlas is None:
+                raise IOError(
+                    "`label_atlas` is required when providing acronyms "
+                    + "as `areas_to_plot`."
+                )
+            atl_df = label_atlas.lookup_df
+            area_id = atl_df.loc[atl_df.acronym == area, "id"]
+            if leg.shape[0] == 0:
+                raise IOError(f"{area} is not a valid area name")
+        else:
+            area_id = area
+
         bin_image *= 0
-        bin_image[new_label == area] = 1
+        bin_image[new_label == area_id] = 1
         i_area = filled_areas.index(area)
         bin_image[new_label == area] += i_area
         contours.append(
