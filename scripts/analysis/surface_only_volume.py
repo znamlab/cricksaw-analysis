@@ -20,12 +20,12 @@ from cricksaw_analysis import atlas_utils
 
 PROCESSED = Path(fzm.PARAMETERS["data_root"]["processed"])
 PROJECT = "hey2_3d-vision_foodres_20220101"
-MOUSE = "PZAH6.4b"
-REGISTRATION = "brainreg"
+MOUSE = "PZAG3.4f"
+REGISTRATION = "elastix"
 ATLAS_SIZE = 10
-OFFSET_FIRST = -100
-OFFSET_LAST = -7
-LEFT_HEM = True
+OFFSET_FIRST = -200
+OFFSET_LAST = 100
+LEFT_HEM = False
 VIS_ONLY = True
 OFFSET_VIS_ANT = 100
 
@@ -169,12 +169,12 @@ bounding_dict = dict(
 print("Write outputs")
 times = dict(start=time.time())
 for color, data in surface_volumes.items():
-    print(" .  %s" % color)
+    print(" ....  %s channel" % color)
     target = PATH_TO_SAVE / ("surface_registered_volume_%s.tiff" % color)
     mhd_image = sitk.GetImageFromArray(data)
     sitk.WriteImage(mhd_image, target)
     times[color] = time.time()
-    print(times[color] - times["start"])
+    print(target)
 # Also save bounding box
 target = PATH_TO_SAVE / "surface_registered_volume_bounding_box.yml"
 with open(target, "w") as fhandle:
