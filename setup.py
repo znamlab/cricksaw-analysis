@@ -14,6 +14,7 @@ setup(
         "tifffile",
         "brainglobe_napari_io",
         "cellfinder",
+        "czifile",
         "flexiznam @ git+ssh://git@github.com/znamlab/flexiznam.git",
     ],
 )
