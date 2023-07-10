@@ -19,6 +19,12 @@ Following the first steps, you might get some library errors:
 This can be fixed by pointing to the library folder of your cuda environment:
 `export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/.conda/envs/cellfinder/lib/`
 
+Trying to update with `pip --upgrade` can break things.
+
+When reinstalling I ran into ``GLIBCXX_3.4.30' not found ` errors. This can be fixed by installing the right version of gcc:
+```bash
+conda install -c conda-forge gcc 
+```
 ## Cricksa analysis
 
 Easy:
