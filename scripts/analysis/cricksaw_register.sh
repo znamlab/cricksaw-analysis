@@ -14,12 +14,12 @@
 ml Anaconda3
 ml Singularity
 echo 'Sourcing conda'
-source /camp/apps/eb/software/Anaconda/conda.env.sh
+source activate base
 
 echo "Loading conda environment"
-conda activate brainregister
+conda activate cellfinder
 echo "Export library path"
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/.conda/envs/brainregister/lib/
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/.conda/envs/cellfinder/lib/
 
 echo "Create elastix aliases"
 elastix_folder="/camp/home/blota/home/shared/resources/elastix"
