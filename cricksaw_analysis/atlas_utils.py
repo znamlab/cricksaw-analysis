@@ -10,6 +10,7 @@ def plot_borders_and_areas(
     areas_to_plot=None,
     color_kwargs=dict(),
     border_kwargs=dict(),
+    label_kwargs=dict(),
     label_atlas=None,
 ):
     """Plot the atlas borders and highlight areas
@@ -25,6 +26,7 @@ def plot_borders_and_areas(
             is provided, `areas_to_plot` can also be a list of area acronyms
         color_kwargs (dict, optional): Keyword arguments for ax.contours of `areas_to_plot`
         border_kwargs (dict, optional): Keyword arguments for ax.contours of borders
+        label_kwargs (dict, optional): Keyword arguments for ax.text of `areas_to_plot`
         label_atlas (Brainglobe atlas, optional): a brainglobe atlas. If provided, will add the
             name of each area in the center of that area (which might be at the midline
             for bilateral labels)
@@ -40,16 +42,38 @@ def plot_borders_and_areas(
     cont_kwargs.update(border_kwargs)
     contours = []
 
-    # frist group subgroups of areas
+    # first group subgroups of areas
     new_label = np.array(label_img)
     filled_areas = []
-    for area_subgroup in areas_to_plot:
-        if hasattr(area_subgroup, "__iter__"):
-            filled_areas.append(area_subgroup[0])
-            for area in area_subgroup:
-                new_label[new_label == area] = area_subgroup[0]
+
+    def get_area_id_from_name_or_id(area):
+        if isinstance(area, str):
+            if label_atlas is None:
+                raise IOError(
+                    "`label_atlas` is required when providing acronyms "
+                    + "as `areas_to_plot`."
+                )
+            atl_df = label_atlas.lookup_df
+            area_id = atl_df.loc[atl_df.acronym == area, "id"]
+            if area_id.shape[0] == 0:
+                raise IOError(f"{area} is not a valid area name")
+            area_id = area_id.iloc[0]
         else:
-            filled_areas.append(area_subgroup)
+            area_id = area
+        return area_id
+
+    for area_subgroup in areas_to_plot:
+        if (isinstance(area_subgroup, list) 
+            or isinstance(area_subgroup, np.ndarray) 
+            or isinstance(area_subgroup, tuple)
+        ):
+            ref_id = get_area_id_from_name_or_id(area_subgroup[0])
+            filled_areas.append(ref_id)
+            for area in area_subgroup:
+                area_id = get_area_id_from_name_or_id(area)
+                new_label[new_label == area_id] = ref_id
+        else:
+            filled_areas.append(get_area_id_from_name_or_id(area_subgroup))
 
     # create an image with continuous labelling of areas
     new_ids = np.unique(new_label)
@@ -62,30 +86,20 @@ def plot_borders_and_areas(
         bin_image[new_label == area] = iar + 1
     ax.contour(bin_image, levels=np.arange(0.5, len(new_ids) + 1, 0.5), **cont_kwargs)
 
-    for area in filled_areas:
+    for area_id in filled_areas:
         # create an image with 1 in the area and 0 everywhere else
-        if isinstance(area, str):
-            if label_atlas is None:
-                raise IOError(
-                    "`label_atlas` is required when providing acronyms "
-                    + "as `areas_to_plot`."
-                )
-            atl_df = label_atlas.lookup_df
-            area_id = atl_df.loc[atl_df.acronym == area, "id"]
-            if leg.shape[0] == 0:
-                raise IOError(f"{area} is not a valid area name")
-        else:
-            area_id = area
 
         bin_image *= 0
         bin_image[new_label == area_id] = 1
-        i_area = filled_areas.index(area)
+        i_area = filled_areas.index(area_id)
         bin_image[new_label == area] += i_area
         contours.append(
             ax.contourf(bin_image, levels=np.array([0.5, 1.5]) + i_area, **kwargs)
         )
 
     if label_atlas is not None:
+        text_kw = dict(color="w", verticalalignment="center", horizontalalignment="center")
+        text_kw.update(label_kwargs)
         atlas_vals = np.sort(np.unique(label_img))
         if atlas_vals[0] == 0:
             atlas_vals = atlas_vals[1:]  # remove 0
@@ -101,9 +115,7 @@ def plot_borders_and_areas(
                 mid_point[1],
                 mid_point[0],
                 s=leg,
-                color="w",
-                verticalalignment="center",
-                horizontalalignment="center",
+                **text_kw,
             )
 
     return contours
