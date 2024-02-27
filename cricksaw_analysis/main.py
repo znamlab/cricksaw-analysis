@@ -8,7 +8,7 @@ from tifffile import tifffile
 import flexiznam as fzm
 
 
-def find_injection_site(img, area, percentile=99.99):
+def find_injection_site(img, area, pixel_size_um, percentile=99.99):
     """Find the injection site in a volume
 
     This find the brightest blob in an image. It works well to find the injection site
@@ -16,19 +16,24 @@ def find_injection_site(img, area, percentile=99.99):
 
     Args:
         img (np.array): 2D or 3D array with image data
-        area (float): 2D area of small objects to ignore. Must be smaller than the
+        area (float): 2D area of small objects to ignore in um. Must be smaller than the
                       cross-section of the injection site
+        pixel_size_um (float): pixel size in um
         percentile (float): percentile for initial thresholding.
 
     Returns:
         inj_site (np.array): bool array of the same size as img with True in the
                              injection site
     """
-
+    area = int(area / pixel_size_um)
+    disk = morphology.ball(int(50 / pixel_size_um))
     threshold = np.percentile(img, percentile)
     inj_site = img > threshold
-    inj_site = morphology.binary_dilation(inj_site)
     inj_site = morphology.remove_small_objects(inj_site, area)
+    inj_site = morphology.binary_dilation(inj_site, footprint=disk)
+    inj_site = morphology.binary_erosion(inj_site, footprint=disk)
+    inj_site = morphology.binary_erosion(inj_site, footprint=disk)
+    inj_site = morphology.binary_dilation(inj_site, footprint=disk)
     labeled = measure.label(inj_site)
     prop = measure.regionprops(labeled)
     # find biggest object
@@ -117,8 +122,13 @@ def find_cell_in_injection_site(
         img_path[fname.suffix] = fname
 
     img = tifffile.imread(img_path[".tif"])
-    area = int(inj_min_width**2 / pixel_size_um)
-    inj_site = find_injection_site(img, area, percentile=inj_vol_percentile)
+
+    inj_site = find_injection_site(
+        img,
+        area=inj_min_width**2,
+        pixel_size_um=pixel_size_um,
+        percentile=inj_vol_percentile,
+    )
 
     # get cells
     processed = roots["processed"] / project / mouse
