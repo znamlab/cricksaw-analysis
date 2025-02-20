@@ -15,6 +15,8 @@ setup(
         "brainglobe_napari_io",
         "cellfinder",
         "czifile",
+        "ccf_streamlines",
+        "bg-atlasapi",
         "flexiznam @ git+ssh://git@github.com/znamlab/flexiznam.git",
     ],
 )
