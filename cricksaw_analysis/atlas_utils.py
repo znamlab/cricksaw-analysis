@@ -1,7 +1,8 @@
 import numpy as np
+from pathlib import Path
 import pandas as pd
 import bg_atlasapi as bga
-from scipy.ndimage import binary_dilation
+import ccf_streamlines.projection as ccfproj
 
 
 def plot_borders_and_areas(
@@ -28,11 +29,11 @@ def plot_borders_and_areas(
             sublist will be grouped together (e.g. [10, [34,30]] will plot 2 contours,
             one for area 10 and one for the union of areas 34 and 30). If `label_atlas`
             is provided, `areas_to_plot` can also be a list of area acronyms
-        color_kwargs (dict, optional): Keyword arguments for ax.contours of 
+        color_kwargs (dict, optional): Keyword arguments for ax.contours of
             `areas_to_plot`
         border_kwargs (dict, optional): Keyword arguments for ax.contours of borders
         label_kwargs (dict, optional): Keyword arguments for ax.text of `areas_to_plot`
-        label_atlas (Brainglobe atlas, optional): a brainglobe atlas. If provided, will 
+        label_atlas (Brainglobe atlas, optional): a brainglobe atlas. If provided, will
             add the name of each area in the center of that area (which might be at the
             midline for bilateral labels)
         get_descendants (bool, optional): if True, will also plot the descendants of the
@@ -58,7 +59,7 @@ def plot_borders_and_areas(
     # first group subgroups of areas
     new_label = np.array(label_img)
     filled_areas = []
-    
+
     for area_subgroup in areas_to_plot:
         to_label = {}
         area_to_fill = get_area_ids(area_subgroup, label_atlas, get_descendants)
@@ -74,7 +75,7 @@ def plot_borders_and_areas(
 
     dtypes = ["uint8", "uint16", "uint32"]
     dtype_limit = [256, 65536, 4294967295]
-    
+
     if plot_borders:
         # create an image with continuous labelling of areas
         new_ids = np.unique(new_label)
@@ -83,8 +84,10 @@ def plot_borders_and_areas(
         bin_image = np.zeros(new_label.shape, dtype=dtype)
         for iar, area in enumerate(sorted_labels):
             bin_image[new_label == area] = iar + 1
-        ax.contour(bin_image, levels=np.arange(0.5, len(new_ids) + 1, 0.5), **cont_kwargs)
-    
+        ax.contour(
+            bin_image, levels=np.arange(0.5, len(new_ids) + 1, 0.5), **cont_kwargs
+        )
+
     dtype = dtypes[np.searchsorted(dtype_limit, len(to_label))]
     bin_image = np.zeros(new_label.shape, dtype=dtype)
     for name, area_id in to_label.items():
@@ -93,9 +96,7 @@ def plot_borders_and_areas(
         bin_image[new_label == area_id] = 1
         if not np.any(bin_image):
             continue
-        contours.append(
-            ax.contourf(bin_image, levels=np.array([0.5, 1.5]), **kwargs)
-        )
+        contours.append(ax.contourf(bin_image, levels=np.array([0.5, 1.5]), **kwargs))
         if label_filled_areas:
             coords = np.vstack(np.where(bin_image))
             mid_point = np.nanmedian(coords, 1)
@@ -112,7 +113,9 @@ def plot_borders_and_areas(
             atlas_vals = atlas_vals[1:]  # remove 0
         to_label = {}
         for area_id in atlas_vals:
-            to_label[label_atlas.lookup_df.query("id == area_id").iloc[0].acronym] = area_id
+            to_label[
+                label_atlas.lookup_df.query("id == area_id").iloc[0].acronym
+            ] = area_id
         labeled_atlas = label_img
         for name, area_id in to_label.items():
             if area_id == 0:
@@ -353,18 +356,18 @@ def cell_density_by_areas(atlas_id, atlas, cortex_df, pixel_size, bg_atlas):
 
 def get_area_ids(areas, label_atlas, get_descendants=False):
     """Return the area ids from a list of area names or ids
-    
+
     Args:
         area: single area name of ids
         label_atlas: brainglobe atlas instance
         get_descendants: if True, will return the descendants of the area
-    
+
     Returns:
         dict
     """
     if isinstance(areas, str) or isinstance(areas, int):
         areas = [areas]
-    
+
     output = {}
     for area in areas:
         if isinstance(area, str):
@@ -376,20 +379,121 @@ def get_area_ids(areas, label_atlas, get_descendants=False):
             acronym = area
         else:
             area_id = area
-            acronym = label_atlas.structures[area]['acronym']
-        
+            acronym = label_atlas.structures[area]["acronym"]
+
         id_list = [area_id]
-        
+
         def _get_descendant(area_id, label_atlas):
             descendants = label_atlas.get_structure_descendants(area_id)
-            desc_ids = [label_atlas.structures[desc]['id'] for desc in descendants]
+            desc_ids = [label_atlas.structures[desc]["id"] for desc in descendants]
             for desc in descendants:
                 desc_ids += _get_descendant(desc, label_atlas)
             return desc_ids
-        
+
         if get_descendants:
             id_list += _get_descendant(area_id, label_atlas)
 
         output[acronym] = id_list
     return output
 
+
+def plot_coronal_view(
+    ax, plane, label_atlas, hemisphere="both", area_colors={}, alpha=0.2
+):
+    """Plot a coronal view of the atlas
+
+    Args:
+
+        ax: Axes on which to plot
+        plane: Plane of the view in atlas voxel coordinates
+        label_atlas: Brainglobe atlas instance
+        hemisphere: Hemisphere to plot (left, right, both)
+        area_colors: Dictionary of area acronyms to their colors
+        alpha: Opacity of the plotted areas
+
+    Returns:
+        cor_atlas: The coronal view of the atlas
+    """
+    midline = label_atlas.annotation.shape[2] // 2
+    # Coronal view
+    if hemisphere == "left":
+        cor_atlas = np.array(label_atlas.annotation[plane, :, :midline])
+    elif hemisphere == "right":
+        cor_atlas = np.array(label_atlas.annotation[plane, :, midline:])
+    else:
+        cor_atlas = np.array(label_atlas.annotation[plane, :, :])
+
+    cor_borders = get_border(cor_atlas)
+    ax.imshow(1 - cor_borders, cmap="gray", vmin=0, vmax=1)
+    for acr in area_colors:
+        plot_borders_and_areas(
+            ax,
+            label_img=cor_atlas,
+            areas_to_plot=[acr],
+            color_kwargs=dict(colors=area_colors[acr], alpha=alpha),
+            label_atlas=label_atlas,
+            get_descendants=True,
+            plot_borders=False,
+            label_filled_areas=False,
+        )
+    return cor_atlas
+
+
+def plot_flatmap(
+    ax,
+    ara_projection="flatmap_dorsal",
+    hemisphere="both",
+    area_colors={},
+    alpha=0.2,
+    ccf_streamlines_folder=None,
+):
+    """Plot a flatmap of the atlas
+
+    Args:
+
+        ax: Axes on which to plot
+        ara_projection: Projection of the atlas (flatmap_dorsal, flatmap_butterfly)
+        hemisphere: Hemisphere to plot (left, right, both)
+        area_colors: Dictionary of area acronyms to their colors
+        alpha: Opacity of the plotted areas
+        ccf_streamlines_folder: Folder where the CCF streamlines are stored.
+
+
+    Returns:
+        flat_atlas: The flatmap of the atlas
+    """
+    if ccf_streamlines_folder is None:
+        import flexiznam as flz
+
+        project_folder = Path(flz.PARAMETERS["data_root"]["processed"]).parent
+        ccf_streamlines_folder = project_folder / "resources" / "ccf_streamlines"
+
+    bf_boundary_finder = ccfproj.BoundaryFinder(
+        projected_atlas_file=ccf_streamlines_folder / f"{ara_projection}.nrrd",
+        labels_file=ccf_streamlines_folder / "labelDescription_ITKSNAPColor.txt",
+    )
+
+    to_plot = []
+    if hemisphere in ["left", "both"]:
+        # We get the left hemisphere region boundaries with the default arguments
+        bf_left_boundaries = bf_boundary_finder.region_boundaries()
+        to_plot.append(bf_left_boundaries)
+
+    if hemisphere in ["right", "both"]:
+        # And we can get the right hemisphere boundaries that match up with
+        # our projection if we specify the same configuration
+        bf_right_boundaries = bf_boundary_finder.region_boundaries(
+            # we want the right hemisphere boundaries, but located in the right place
+            # to plot both hemispheres at the same time
+            hemisphere="right_for_both" if hemisphere == "both" else "right",
+            # we also want the hemispheres to be adjacent
+            view_space_for_other_hemisphere=ara_projection,
+        )
+        to_plot.append(bf_right_boundaries)
+    # Flatmap
+    for boundaries in to_plot:
+        for acronym, boundary_coords in boundaries.items():
+            ax.plot(*boundary_coords.T, c="k", lw=0.5)
+            if acronym in area_colors:
+                ax.fill(*boundary_coords.T, c=area_colors[acronym], alpha=alpha, lw=0)
+    ax.set_aspect("equal")
