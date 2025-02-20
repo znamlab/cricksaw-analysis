@@ -12,6 +12,10 @@ def plot_borders_and_areas(
     border_kwargs=dict(),
     label_kwargs=dict(),
     label_atlas=None,
+    get_descendants=False,
+    plot_borders=True,
+    label_filled_areas=True,
+    label_all_areas=False,
 ):
     """Plot the atlas borders and highlight areas
 
@@ -24,12 +28,18 @@ def plot_borders_and_areas(
             sublist will be grouped together (e.g. [10, [34,30]] will plot 2 contours,
             one for area 10 and one for the union of areas 34 and 30). If `label_atlas`
             is provided, `areas_to_plot` can also be a list of area acronyms
-        color_kwargs (dict, optional): Keyword arguments for ax.contours of `areas_to_plot`
+        color_kwargs (dict, optional): Keyword arguments for ax.contours of 
+            `areas_to_plot`
         border_kwargs (dict, optional): Keyword arguments for ax.contours of borders
         label_kwargs (dict, optional): Keyword arguments for ax.text of `areas_to_plot`
-        label_atlas (Brainglobe atlas, optional): a brainglobe atlas. If provided, will add the
-            name of each area in the center of that area (which might be at the midline
-            for bilateral labels)
+        label_atlas (Brainglobe atlas, optional): a brainglobe atlas. If provided, will 
+            add the name of each area in the center of that area (which might be at the
+            midline for bilateral labels)
+        get_descendants (bool, optional): if True, will also plot the descendants of the
+            areas in `areas_to_plot`
+        plot_borders (bool, optional): if True, will plot the borders of all areas
+        label_filled_areas (bool, optional): if True, will label areas in areas_to_plot
+        label_all_areas (bool, optional): if True, will label all areas in the atlas
     Returns:
         contours: contours of the filled areas
     """
@@ -40,81 +50,79 @@ def plot_borders_and_areas(
     kwargs.update(color_kwargs)
     cont_kwargs = dict(colors="Grey")
     cont_kwargs.update(border_kwargs)
+    text_kw = dict(color="w", verticalalignment="center", horizontalalignment="center")
+    text_kw.update(label_kwargs)
+
     contours = []
 
     # first group subgroups of areas
     new_label = np.array(label_img)
     filled_areas = []
-
-    def get_area_id_from_name_or_id(area):
-        if isinstance(area, str):
-            if label_atlas is None:
-                raise IOError(
-                    "`label_atlas` is required when providing acronyms "
-                    + "as `areas_to_plot`."
-                )
-            atl_df = label_atlas.lookup_df
-            area_id = atl_df.loc[atl_df.acronym == area, "id"]
-            if area_id.shape[0] == 0:
-                raise IOError(f"{area} is not a valid area name")
-            area_id = area_id.iloc[0]
-        else:
-            area_id = area
-        return area_id
-
+    
     for area_subgroup in areas_to_plot:
-        if (isinstance(area_subgroup, list) 
-            or isinstance(area_subgroup, np.ndarray) 
-            or isinstance(area_subgroup, tuple)
-        ):
-            ref_id = get_area_id_from_name_or_id(area_subgroup[0])
-            filled_areas.append(ref_id)
-            for area in area_subgroup:
-                area_id = get_area_id_from_name_or_id(area)
-                new_label[new_label == area_id] = ref_id
-        else:
-            filled_areas.append(get_area_id_from_name_or_id(area_subgroup))
+        to_label = {}
+        area_to_fill = get_area_ids(area_subgroup, label_atlas, get_descendants)
+        # paint all the areas in the subgroup with the same color
+        main_id = None
+        for acr, ids in area_to_fill.items():
+            if main_id is None:
+                main_id = ids[0]
+                to_label[acr] = main_id
+            for area_id in ids:
+                new_label[new_label == area_id] = main_id
+        filled_areas.append(main_id)
 
-    # create an image with continuous labelling of areas
-    new_ids = np.unique(new_label)
     dtypes = ["uint8", "uint16", "uint32"]
     dtype_limit = [256, 65536, 4294967295]
-    dtype = dtypes[np.searchsorted(dtype_limit, len(new_ids))]
+    
+    if plot_borders:
+        # create an image with continuous labelling of areas
+        new_ids = np.unique(new_label)
+        dtype = dtypes[np.searchsorted(dtype_limit, len(new_ids))]
+        sorted_labels = np.sort(new_ids)
+        bin_image = np.zeros(new_label.shape, dtype=dtype)
+        for iar, area in enumerate(sorted_labels):
+            bin_image[new_label == area] = iar + 1
+        ax.contour(bin_image, levels=np.arange(0.5, len(new_ids) + 1, 0.5), **cont_kwargs)
+    
+    dtype = dtypes[np.searchsorted(dtype_limit, len(to_label))]
     bin_image = np.zeros(new_label.shape, dtype=dtype)
-    sorted_labels = np.sort(new_ids)
-    for iar, area in enumerate(sorted_labels):
-        bin_image[new_label == area] = iar + 1
-    ax.contour(bin_image, levels=np.arange(0.5, len(new_ids) + 1, 0.5), **cont_kwargs)
-
-    for area_id in filled_areas:
+    for name, area_id in to_label.items():
         # create an image with 1 in the area and 0 everywhere else
-
         bin_image *= 0
         bin_image[new_label == area_id] = 1
-        i_area = filled_areas.index(area_id)
-        bin_image[new_label == area] += i_area
+        if not np.any(bin_image):
+            continue
         contours.append(
-            ax.contourf(bin_image, levels=np.array([0.5, 1.5]) + i_area, **kwargs)
+            ax.contourf(bin_image, levels=np.array([0.5, 1.5]), **kwargs)
         )
-
-    if label_atlas is not None:
-        text_kw = dict(color="w", verticalalignment="center", horizontalalignment="center")
-        text_kw.update(label_kwargs)
-        atlas_vals = np.sort(np.unique(label_img))
-        if atlas_vals[0] == 0:
-            atlas_vals = atlas_vals[1:]  # remove 0
-        atl_df = label_atlas.lookup_df
-        for ic, area_id in enumerate(atlas_vals):
-            leg = atl_df.loc[atl_df.id == area_id, "acronym"]
-            if leg.shape[0] == 0:
-                continue
-            leg = leg.iloc[0]
-            coords = np.vstack(np.where(label_img == area_id))
+        if label_filled_areas:
+            coords = np.vstack(np.where(bin_image))
             mid_point = np.nanmedian(coords, 1)
             ax.text(
                 mid_point[1],
                 mid_point[0],
-                s=leg,
+                s=name,
+                **text_kw,
+            )
+
+    if label_all_areas:
+        atlas_vals = np.sort(np.unique(label_img))
+        if atlas_vals[0] == 0:
+            atlas_vals = atlas_vals[1:]  # remove 0
+        to_label = {}
+        for area_id in atlas_vals:
+            to_label[label_atlas.lookup_df.query("id == area_id").iloc[0].acronym] = area_id
+        labeled_atlas = label_img
+        for name, area_id in to_label.items():
+            if area_id == 0:
+                continue
+            coords = np.vstack(np.where(labeled_atlas == area_id))
+            mid_point = np.nanmedian(coords, 1)
+            ax.text(
+                mid_point[1],
+                mid_point[0],
+                s=name,
                 **text_kw,
             )
 
