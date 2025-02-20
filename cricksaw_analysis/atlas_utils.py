@@ -341,3 +341,47 @@ def cell_density_by_areas(atlas_id, atlas, cortex_df, pixel_size, bg_atlas):
         area_d["density"] = area_d["count"] / area_d["volume"]
         out[area_name] = area_d
     return out
+
+
+def get_area_ids(areas, label_atlas, get_descendants=False):
+    """Return the area ids from a list of area names or ids
+    
+    Args:
+        area: single area name of ids
+        label_atlas: brainglobe atlas instance
+        get_descendants: if True, will return the descendants of the area
+    
+    Returns:
+        dict
+    """
+    if isinstance(areas, str) or isinstance(areas, int):
+        areas = [areas]
+    
+    output = {}
+    for area in areas:
+        if isinstance(area, str):
+            atl_df = label_atlas.lookup_df
+            area_id = atl_df.loc[atl_df.acronym == area, "id"]
+            if area_id.shape[0] == 0:
+                raise IOError(f"{area} is not a valid area name")
+            area_id = area_id.iloc[0]
+            acronym = area
+        else:
+            area_id = area
+            acronym = label_atlas.structures[area]['acronym']
+        
+        id_list = [area_id]
+        
+        def _get_descendant(area_id, label_atlas):
+            descendants = label_atlas.get_structure_descendants(area_id)
+            desc_ids = [label_atlas.structures[desc]['id'] for desc in descendants]
+            for desc in descendants:
+                desc_ids += _get_descendant(desc, label_atlas)
+            return desc_ids
+        
+        if get_descendants:
+            id_list += _get_descendant(area_id, label_atlas)
+
+        output[acronym] = id_list
+    return output
+
