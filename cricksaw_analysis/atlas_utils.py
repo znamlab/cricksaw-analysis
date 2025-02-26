@@ -446,6 +446,7 @@ def plot_flatmap(
     area_colors={},
     alpha=0.2,
     ccf_streamlines_folder=None,
+    label_areas=True,
 ):
     """Plot a flatmap of the atlas
 
@@ -457,6 +458,7 @@ def plot_flatmap(
         area_colors: Dictionary of area acronyms to their colors
         alpha: Opacity of the plotted areas
         ccf_streamlines_folder: Folder where the CCF streamlines are stored.
+        label_areas: Whether to label the areas. Default is True.
 
 
     Returns:
@@ -496,4 +498,14 @@ def plot_flatmap(
             ax.plot(*boundary_coords.T, c="k", lw=0.5)
             if acronym in area_colors:
                 ax.fill(*boundary_coords.T, c=area_colors[acronym], alpha=alpha, lw=0)
+                if label_areas:
+                    ax.text(
+                        np.mean(boundary_coords[:, 0]),
+                        np.mean(boundary_coords[:, 1]),
+                        acronym,
+                        fontsize=8,
+                        color="k",
+                        ha="center",
+                        va="center",
+                    )
     ax.set_aspect("equal")
