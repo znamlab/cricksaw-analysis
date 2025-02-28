@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 from pathlib import Path
 import pandas as pd
 import bg_atlasapi as bga
@@ -559,8 +560,10 @@ def get_ara_retinotopic_map(keep_cropped_data=False):
         mean_altitude_map[ii, :, :] = altitude_map
         mean_azimuth_map[ii, :, :] = azimuth_map
 
+    warnings.filterwarnings("ignore")
     mean_altitude_map = np.nanmean(mean_altitude_map, axis=0)
     mean_azimuth_map = np.nanmean(mean_azimuth_map, axis=0)
+    warnings.filterwarnings("default")
 
     if keep_cropped_data:
         return mean_altitude_map, mean_azimuth_map
