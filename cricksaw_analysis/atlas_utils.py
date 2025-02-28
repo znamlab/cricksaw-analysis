@@ -3,6 +3,8 @@ from pathlib import Path
 import pandas as pd
 import bg_atlasapi as bga
 import ccf_streamlines.projection as ccfproj
+import requests
+from six import BytesIO
 
 
 def plot_borders_and_areas(
@@ -484,12 +486,17 @@ def plot_flatmap(
     if hemisphere in ["right", "both"]:
         # And we can get the right hemisphere boundaries that match up with
         # our projection if we specify the same configuration
+        if ara_projection in ["flatmap_dorsal", "flatmap_butterfly"]:
+            view_space_for_other_hemisphere = ara_projection
+        else:
+            view_space_for_other_hemisphere = True
+
         bf_right_boundaries = bf_boundary_finder.region_boundaries(
             # we want the right hemisphere boundaries, but located in the right place
             # to plot both hemispheres at the same time
             hemisphere="right_for_both" if hemisphere == "both" else "right",
             # we also want the hemispheres to be adjacent
-            view_space_for_other_hemisphere=ara_projection,
+            view_space_for_other_hemisphere=view_space_for_other_hemisphere,
         )
         to_plot.append(bf_right_boundaries)
     # Flatmap
@@ -509,3 +516,69 @@ def plot_flatmap(
                         va="center",
                     )
     ax.set_aspect("equal")
+
+
+def get_ara_retinotopic_map(keep_cropped_data=False):
+    """Get the retinotopic map from the Allen Brain Atlas
+
+    From: Biological variation in the sizes, shapes and locations of visual cortical
+    areas in the mouse Waters J, Lee E, Gaudreault N, Griffin F, Lecoq J, et al. (2019)
+    PLOS ONE 14(5): e0213924. https://doi.org/10.1371/journal.pone.0213924
+
+    Args:
+        keep_cropped_data: if True, will keep the cropped data, as in the original
+            article. If False, pad the output to the full atlas size. Default is False
+
+    Returns:
+    mean_elevation_map, mean_azimuth_map: np.ndarray
+        The elevation and azimuth maps on top projection of the Allen Mouse Brain Atlas
+    """
+    WKF_URL = "http://api.brain-map.org/api/v2/well_known_file_download/{}"
+
+    def numpy_load_wkf(wkf_id, url=WKF_URL):
+        url = url.format(wkf_id)
+        r = requests.get(url)
+        if r.status_code != 200:
+            print("Error retrieving file from {}".format(url))
+        else:
+            return np.load(BytesIO(r.content))
+
+    ISI1_azimuth_map_stack = numpy_load_wkf(745545159)
+    ISI1_altitude_map_stack = numpy_load_wkf(745544088)
+    mean_altitude_map = np.copy(ISI1_altitude_map_stack)
+    mean_azimuth_map = np.copy(ISI1_azimuth_map_stack)
+
+    for ii in range(mean_altitude_map.shape[0]):
+        altitude_map = mean_altitude_map[ii, :, :]
+        azimuth_map = mean_azimuth_map[ii, :, :]
+
+        # convert all values with no data to NaNs
+        altitude_map[altitude_map == altitude_map[0, 0]] = np.nan
+        azimuth_map[azimuth_map == azimuth_map[0, 0]] = np.nan
+
+        mean_altitude_map[ii, :, :] = altitude_map
+        mean_azimuth_map[ii, :, :] = azimuth_map
+
+    mean_altitude_map = np.nanmean(mean_altitude_map, axis=0)
+    mean_azimuth_map = np.nanmean(mean_azimuth_map, axis=0)
+
+    if keep_cropped_data:
+        return mean_altitude_map, mean_azimuth_map
+
+    atlas = bga.bg_atlas.BrainGlobeAtlas("allen_mouse_10um")
+    ara_azimuth = np.zeros((atlas.shape[0], atlas.shape[2])) + np.nan
+    ara_elevation = np.zeros((atlas.shape[0], atlas.shape[2])) + np.nan
+    s = mean_azimuth_map.shape
+    shift = [500, 0]
+    ara_azimuth[
+        shift[0] : s[0] + shift[0], shift[1] : s[1] + shift[1]
+    ] = mean_azimuth_map
+    ara_elevation[
+        shift[0] : s[0] + shift[0], shift[1] : s[1] + shift[1]
+    ] = mean_altitude_map
+
+    # Make a symetric map for the other hemisphere
+    midline = int(atlas.shape[2] / 2)
+    ara_azimuth[:, midline:] = np.flip(ara_azimuth[:, :midline], axis=1)
+    ara_elevation[:, midline:] = np.flip(ara_elevation[:, :midline], axis=1)
+    return ara_elevation, ara_azimuth
