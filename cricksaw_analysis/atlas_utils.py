@@ -6,6 +6,7 @@ import bg_atlasapi as bga
 import ccf_streamlines.projection as ccfproj
 import requests
 from six import BytesIO
+import tqdm
 
 
 def plot_borders_and_areas(
@@ -585,3 +586,129 @@ def get_ara_retinotopic_map(keep_cropped_data=False):
     ara_azimuth[:, midline:] = np.flip(ara_azimuth[:, :midline], axis=1)
     ara_elevation[:, midline:] = np.flip(ara_elevation[:, :midline], axis=1)
     return ara_elevation, ara_azimuth
+
+
+def move_out_of_area(
+    pts: np.array,
+    atlas,
+    areas_to_empty="fiber tracts",
+    valid_areas="grey",
+    distance_threshold: float = 200,
+    verbose: bool = True,
+):
+    """Move pts that are in `areas_to_empty` into the closest area
+
+    Args:
+        pts (np.array): array of points to move
+        atlas (BrainGlobeAtlas): atlas to use
+        areas_to_empty (str | list): area(s) to empty, must be valid `atlas.structure`
+            name (acronym)
+        valid_areas (str | list): area(s) to move the points to,  area(s) to empty, must
+            be valid `atlas.structure` name (acronym)
+        distance_threshold (float): maximum distance to move the points in microns
+        verbose (bool): if True, will print some information
+
+
+    Returns:
+        pd.Dataframe: dataframe with `initial_coords`, `new_coords`, `distance_moved`,
+            `new_area_id`, `new_area_acronym`, `moved`, `pts_index` columns
+    """
+    area_ids = np.zeros_like(pts[:, 0]) + np.nan
+
+    # Get all the descendants of the area to empty
+    id2empty = set()
+    if isinstance(areas_to_empty, str):
+        areas_to_empty = [areas_to_empty]
+    for area_to_empty in areas_to_empty:
+        invalid = atlas.structures.tree.leaves(atlas.structures[area_to_empty]["id"])
+        id2empty.update(l.identifier for l in invalid)
+    id2empty = list(id2empty)
+
+    # Find all points that are in the area to empty
+    voxel_coords = np.round(pts / np.array(atlas.resolution)).astype(int)
+    area_ids = atlas.annotation[
+        voxel_coords[:, 0], voxel_coords[:, 1], voxel_coords[:, 2]
+    ]
+    to_move = np.isin(area_ids, id2empty)
+    if verbose:
+        print(f"Found {to_move.sum()} points in {areas_to_empty}")
+    if not to_move.sum():
+        return pd.DataFrame(
+            columns=[
+                "initial_coords",
+                "new_coords",
+                "distance_moved",
+                "new_area_id",
+                "new_area_acronym",
+                "moved",
+                "pts_index",
+            ]
+        )
+
+    # Find which areas are valid destinations
+    idvalid = set()
+    if isinstance(valid_areas, str):
+        valid_areas = [valid_areas]
+    for valid_area in valid_areas:
+        valid = atlas.structures.tree.leaves(atlas.structures[valid_area]["id"])
+        idvalid.update(l.identifier for l in valid)
+    idvalid = list(idvalid)
+    if verbose:
+        print(f"Found {len(idvalid)} acceptable target areas")
+
+    window = np.round(distance_threshold / np.array(atlas.resolution)).astype(int)
+    # Find the closest point in the valid area
+    moved = []
+    for pts_index in tqdm.tqdm(np.where(to_move)[0], disable=not verbose):
+        pts_info = dict()
+        point = pts[pts_index]
+        pts_info["initial_coords"] = point
+        pts_info["pts_index"] = pts_index
+        if np.isnan(point).any():
+            continue
+        center_voxel = voxel_coords[pts_index]
+        lims = np.vstack([center_voxel - window, center_voxel + window])
+        lims = np.clip(lims, 0, np.array(atlas.annotation.shape) - 1)
+        local_atlas = atlas.annotation[
+            lims[0, 0] : lims[1, 0], lims[0, 1] : lims[1, 1], lims[0, 2] : lims[1, 2]
+        ]
+        pts_in_local_atlas = point / np.array(atlas.resolution)
+        pts_in_local_atlas = pts_in_local_atlas - lims[0]
+        valid_coords = np.array(np.where(np.isin(local_atlas, idvalid)))
+        if not valid_coords.shape[1]:
+            pts_info["new_coords"] = pts_info["initial_coords"]
+            pts_info["distance_moved"] = 0
+            pts_info["new_area_id"] = np.nan
+            pts_info["new_area_acronym"] = "None"
+            pts_info["moved"] = False
+            moved.append(pts_info)
+            continue
+        rel_coord_voxel = valid_coords - pts_in_local_atlas[:, None]
+        # make it into um
+        rel_coord_um = rel_coord_voxel * np.array(atlas.resolution)[:, None]
+        distance2pts = np.linalg.norm(rel_coord_um, axis=0)
+        cl_id = np.argmin(distance2pts)
+        closest_distance = distance2pts[cl_id]
+        if closest_distance > distance_threshold:
+            pts_info["new_coords"] = pts_info["initial_coords"]
+            pts_info["distance_moved"] = 0
+            pts_info["new_area_id"] = np.nan
+            pts_info["new_area_acronym"] = "None"
+            pts_info["moved"] = False
+            moved.append(pts_info)
+            continue
+        pts_info["distance_moved"] = closest_distance
+        closest_coord = valid_coords[:, cl_id] + lims[0]
+        pts_info["new_coords"] = closest_coord * np.array(atlas.resolution)
+        pts_info["new_area_id"] = atlas.annotation[
+            closest_coord[0], closest_coord[1], closest_coord[2]
+        ]
+        pts_info["new_area_acronym"] = atlas.structures[pts_info["new_area_id"]][
+            "acronym"
+        ]
+        pts_info["moved"] = True
+        moved.append(pts_info)
+    moved_df = pd.DataFrame(moved)
+    if verbose:
+        print(f"Moved {moved_df.moved.sum()}/{to_move.sum()} points")
+    return moved_df
