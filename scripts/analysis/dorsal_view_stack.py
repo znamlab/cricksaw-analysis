@@ -16,20 +16,21 @@ import itk
 import numpy as np
 from napari.viewer import Viewer
 from cricksaw_analysis import atlas_utils
+import tifffile
 
 
 PROCESSED = Path("/camp/lab/znamenskiyp/home/shared/projects")
 PROJECT = "hey2_3d-vision_foodres_20220101"
-MOUSE = "PZAH6.4b"
+MOUSE = "PZAH10.2b"
 REGISTRATION = "brainreg"
-ATLAS_SIZE = 10
+ATLAS_SIZE = 25
 
 if REGISTRATION == "brainreg":
     DATA_FOLDER = PROCESSED / PROJECT / MOUSE / "brainreg_results" / "from_downsampled"
     imgs_path = dict(
-        red=Path(DATA_FOLDER) / "downsampled_standard.tiff",
+        red=Path(DATA_FOLDER) / "red" / "downsampled_standard.tiff",
         blue=None,
-        green=Path(DATA_FOLDER) / "downsampled_standard_2.tiff",
+        green=Path(DATA_FOLDER) / "green" / "downsampled_standard.tiff",
     )
     ATLAS_ANNOTATION = None  # will load from brainglobe
 elif REGISTRATION == "elastix":
@@ -119,6 +120,7 @@ for l in layers:
         data_view = np.zeros(x.shape, dtype=img_volume.dtype)
         zero, maxval_brain = np.quantile(img_volume, [0.0001, 0.9999])
         extent = maxval_brain - zero
+        stack = []
         for name, i in enumerate(range(-10, 30)):
             img = img_volume[x, top_of_layer + i, y]
             img = (img - zero) * (2**16 / extent.max())
@@ -131,4 +133,12 @@ for l in layers:
                     % (l.replace("/", ""), color, name)
                 ),
             )
+            stack.append(img)
+        stack=np.stack(stack)
+        tifffile.imwrite(PATH_TO_SAVE
+                / (
+                    f"dorsal_view_stack_around_layer_1_{color}.tif"
+                ),
+                stack)
+
         # do the extended depth of focus in FIJI
