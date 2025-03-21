@@ -4,6 +4,8 @@ include scripts/README.md
 recursive-include scripts *.sh
 recursive-include scripts *.m
 recursive-include scripts *.py
+recursive-include scripts *.ipynb
+recursive-exclude scripts *antonin*
 
 exclude .pre-commit-config.yaml
 
