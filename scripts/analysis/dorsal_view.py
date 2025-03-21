@@ -4,28 +4,26 @@ Create a dorsal view projected across layers.
 Particularly useful to find blood vessel patterns
 """
 
-import matplotlib
 import socket
+
+import matplotlib
 
 if socket.gethostname() == "C02Z85AULVDC":
     matplotlib.use("macosx")
 
 from pathlib import Path
-import flexiznam as fzm
-import bg_space as bgs
+
 import bg_atlasapi as bga
-import matplotlib.pyplot as plt
 import itk
+import matplotlib.pyplot as plt
 import numpy as np
 from napari.viewer import Viewer
-from brainglobe_napari_io.cellfinder import reader_xml
-import tifffile
 
 from cricksaw_analysis import atlas_utils
 
 PROCESSED = Path("/camp/lab/znamenskiyp/home/shared/projects")
-PROJECT = "hey2_3d-vision_foodres_20220101"
-MOUSE = "PZAH6.4b"
+PROJECT = "rabies_barcoding"
+MOUSE = "BRYC64.2h"
 REGISTRATION = "brainreg"
 ATLAS_SIZE = 10
 PEELED_SAVE_PATH = None
@@ -33,7 +31,9 @@ PROJECTION = "max"
 SAVE_SVG = False
 
 if REGISTRATION == "brainreg":
-    DATA_FOLDER = PROCESSED / PROJECT / MOUSE / "brainreg_results" / "from_downsampled"
+    DATA_FOLDER = (
+        PROCESSED / PROJECT / MOUSE / "brainreg_results"
+    )  # / "from_downsampled"
     imgs_path = dict(
         red=Path(DATA_FOLDER) / "downsampled_standard.tiff",
         blue=None,
@@ -57,7 +57,7 @@ else:
 
 
 PATH_TO_SAVE = DATA_FOLDER / "dorsal_view"
-ATLAS_NAME = "allen_mouse_%dum" % ATLAS_SIZE
+ATLAS_NAME = "allen_mouse_%dum" % ATLAS_SIZE  # codespell:ignore dum
 NAPARI = False
 
 projs = dict(max=np.maximum, min=np.minimum, mean=np.add, sum=np.add)
@@ -153,7 +153,7 @@ for l in layers:
     atlas_dorsal_by_layer[l] = atlas_layer
 
     if l == "0":
-        # We don't change peeled_atlas, we will jsut look at the surface of registartion
+        # We don't change peeled_atlas, we will just look at the surface of registration
         pass
     else:
         layer_index = ctx_df.loc[ctx_df.layer == l, "id"].values

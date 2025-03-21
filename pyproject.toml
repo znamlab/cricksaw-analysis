@@ -6,7 +6,8 @@ readme = "README.md"
 requires-python = ">=3.8.0"
 dynamic = ["version"]
 
-dependencies = [        "numpy",
+dependencies = [
+        "numpy",
         "pyyaml",
         "pynrrd",
         "matplotlib",
@@ -19,7 +20,8 @@ dependencies = [        "numpy",
         "czifile",
         "ccf_streamlines",
         "bg-atlasapi",
-        "flexiznam @ git+ssh://git@github.com/znamlab/flexiznam.git",]
+        "flexiznam @ git+ssh://git@github.com/znamlab/flexiznam.git",
+        ]
 
 license = {text = "MIT"}
 

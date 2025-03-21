@@ -1,14 +1,15 @@
+import multiprocessing
 import os
-import SimpleITK as sitk
+import xml.etree.ElementTree as ET
+
 import numpy as np
 import pandas as pd
+import SimpleITK as sitk
 import tifffile
-from skimage.transform import resize, downscale_local_mean
-from PIL import Image
-import xml.etree.ElementTree as ET
 import yaml
 from joblib import Parallel, delayed
-import multiprocessing
+from PIL import Image
+from skimage.transform import downscale_local_mean, resize
 
 N_CORES = multiprocessing.cpu_count()
 
@@ -48,7 +49,7 @@ def get_downsample_factor(path2tiff, outsize=25):
                     pixel_size = [i * 1e4 for i in pixel_size]  # switch to micrometers
                 else:
                     raise IOError("weird unit")
-            except (ValueError):
+            except ValueError:
                 pass
         if tiffImage.is_ome:
             root = ET.fromstring(metadata["image_description"])
@@ -372,7 +373,7 @@ def downsample_brainsaw(
             mhd_image = sitk.GetImageFromArray(small_data)
             sitk.WriteImage(mhd_image, target)
         else:
-            raise NotImplemented
+            raise NotImplementedError
     else:
         print("No target. Do not save")
     return small_data

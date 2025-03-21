@@ -1,6 +1,6 @@
 import os
 import socket
-import sys
+
 import numpy as np
 
 print("start")
@@ -22,10 +22,10 @@ elif machine.startswith("int") or machine.startswith("ca") or machine.startswith
     atlas_directory = (
         "/camp/lab/znamenskiyp/home/shared/resources/cellfinder_resources/ARA_CCFv3"
     )
-    raw_directory = "/camp/lab/znamenskiyp/data/instruments/raw_data/projects/hey2_3d-vision_foodres_20220101"
-    processed_directory = (
-        "/camp/lab/znamenskiyp/home/shared/projects/hey2_3d-vision_foodres_20220101"
+    raw_directory = (
+        "/camp/lab/znamenskiyp/data/instruments/raw_data/projects/rabies_barcoding"
     )
+    processed_directory = "/camp/lab/znamenskiyp/home/shared/projects/rabies_barcoding"
 else:
     raise (IOError("Cannot recognise machine %s" % machine))
 
@@ -33,21 +33,24 @@ paramPath = os.path.join(
     atlas_directory, "elastix_transforms/"
 )  # path to parameter files
 
-transformix_command = r"singularity run --bind /camp /camp/lab/znamenskiyp/home/shared/resources/elastix/elastix_5.0.1.sif transformix"
+transformix_command = (
+    r"singularity run --bind /camp /camp/lab/znamenskiyp/home/"
+    + "shared/resources/elastix/elastix_5.0.1.sif transformix"
+)
 atlas_size = 10
 do_downsample = True
-do_roi = False
-do_roi_processing = False  # For ROI do some extra analysis
+do_roi = True
+do_roi_processing = True  # For ROI do some extra analysis
 do_register = True
 do_register_inverse = True
-do_trans_template = False
-do_trans_data = False
+do_trans_template = True
+do_trans_data = True
 # transform_list = ['translation', 'rigid', 'affine', 'bspline']
 transform_list = ["01_ARA_translate", "02_ARA_rigid", "03_ARA_affine", "04_ARA_bspline"]
 
 ramcheck = False
-todo = ["PZAH6.4b"]
-subfolder = "brainsaw"
+todo = ["BRYC64.2h"]
+subfolder = ""
 
 atlas_directory = os.path.join(atlas_directory, "ARA_%i_micron_mhd" % atlas_size)
 path2template = os.path.join(atlas_directory, "template.mhd")
@@ -59,9 +62,11 @@ path2borders_withAL = os.path.join(atlas_directory, "borders_with_ALPMLP.mhd")
 #### CODE ####
 
 # Define the path to code and add to path
-from cricksaw_analysis.elastix_registration import register_functions
-from cricksaw_analysis.elastix_registration import pre_processing
-from cricksaw_analysis.elastix_registration import atlas_utils
+from cricksaw_analysis.elastix_registration import (
+    atlas_utils,
+    pre_processing,
+    register_functions,
+)
 
 if do_trans_template:
     print("Atlas loading")
@@ -90,7 +95,7 @@ for mouse_name in todo:
     cellPtsFiles = []
     # find all roi points in the masiv directory
     masivPath = os.path.join(processed_directory, mouse_name, mouse_name + "_MaSIV")
-    cellPath = os.path.join(processed_directory, "cellfinder_res")
+    cellPath = os.path.join(processed_directory, "cellfinder_results")
 
     if do_roi:
         if not os.path.isdir(masivPath):
@@ -339,12 +344,12 @@ for mouse_name in todo:
                 dict_for_masiv_raw = dict()
                 dict_for_masiv_reg = dict()
                 for layer_name in dict_by_layer_raw:
-                    dict_for_masiv_raw[
-                        "Type%d" % order.index(layer_name)
-                    ] = dict_by_layer_raw[layer_name][:, [1, 2, 0]]
-                    dict_for_masiv_reg[
-                        "Type%d" % order.index(layer_name)
-                    ] = dict_by_layer_reg[layer_name][:, [1, 2, 0]]
+                    dict_for_masiv_raw["Type%d" % order.index(layer_name)] = (
+                        dict_by_layer_raw[layer_name][:, [1, 2, 0]]
+                    )
+                    dict_for_masiv_reg["Type%d" % order.index(layer_name)] = (
+                        dict_by_layer_reg[layer_name][:, [1, 2, 0]]
+                    )
                 rois_io.write_masiv_roi(
                     dict_for_masiv_raw,
                     os.path.join(path2reg, base_name + "_raw_by_layer.yml"),
