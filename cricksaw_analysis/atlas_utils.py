@@ -1,12 +1,13 @@
-import numpy as np
 import warnings
 from pathlib import Path
-import pandas as pd
+
 import bg_atlasapi as bga
 import ccf_streamlines.projection as ccfproj
+import numpy as np
+import pandas as pd
 import requests
-from six import BytesIO
 import tqdm
+from six import BytesIO
 
 
 def plot_borders_and_areas(
@@ -117,9 +118,9 @@ def plot_borders_and_areas(
             atlas_vals = atlas_vals[1:]  # remove 0
         to_label = {}
         for area_id in atlas_vals:
-            to_label[
-                label_atlas.lookup_df.query("id == area_id").iloc[0].acronym
-            ] = area_id
+            to_label[label_atlas.lookup_df.query("id == area_id").iloc[0].acronym] = (
+                area_id
+            )
         labeled_atlas = label_img
         for name, area_id in to_label.items():
             if area_id == 0:
@@ -152,7 +153,6 @@ def create_ctx_table(atlas=None):
         atlas = bga.bg_atlas.BrainGlobeAtlas(atlas)
 
     atlas.structures["Isocortex"]["id"]
-    ctx_acr = atlas.get_structure_descendants("Isocortex")
     ctx_leaves = atlas.structures.tree.leaves(atlas.structures["Isocortex"]["id"])
     ctx_df = []
     for node in ctx_leaves:
@@ -193,7 +193,7 @@ def create_ctx_table(atlas=None):
                     data,
                     cortical_area=parent["name"],
                     cortical_area_id=parent_id,
-                    layer="nd",
+                    layer="nd",  # codespell:ignore nd
                     area_acronym=parent["acronym"],
                 )
             )
@@ -206,8 +206,8 @@ def peel_atlas(
 ):
     """Remove sequentially areas and generate external view
 
-    This function will make an external view, remove first group of IDs in peel_list, make
-    an external view and repeat. This effectively peels the atlas bit by bits.
+    This function will make an external view, remove first group of IDs in peel_list,
+    make an external view and repeat. This effectively peels the atlas bit by bits.
 
     It returns the atlas ID in
 
@@ -240,7 +240,8 @@ def external_view(
 
     axis can be dorsal, ventral, left, right, front, back
 
-    if get_index, doesn't return the view but the index of the pixels generating the view
+    if get_index is True, doesn't return the view but the index of the pixels generating
+    the view
 
     if which is first return the surface. If which is last, return the first index
     after the surface that is out of the brain. It is not equivalent to changing the
@@ -266,10 +267,10 @@ def external_view(
     pad = np.zeros([1] + list(bin_atlas.shape[1:]), dtype="int8")
     is_in_brain = np.diff(np.vstack([pad, bin_atlas]), axis=0)
     if which == "first":
-        # argmax return the first occurence of max (which is 1 here)
+        # argmax return the first occurrence of max (which is 1 here)
         first_in_brain = np.argmax(is_in_brain, axis=0)
     elif which == "last":
-        # argmin return the first occurence of min (which is -1 here)
+        # argmin return the first occurrence of min (which is -1 here)
         first_in_brain = np.argmin(is_in_brain, axis=0)
     else:
         raise IOError("Unknown type. Which should be first or last")
@@ -574,14 +575,14 @@ def get_ara_retinotopic_map(keep_cropped_data=False):
     ara_elevation = np.zeros((atlas.shape[0], atlas.shape[2])) + np.nan
     s = mean_azimuth_map.shape
     shift = [500, 0]
-    ara_azimuth[
-        shift[0] : s[0] + shift[0], shift[1] : s[1] + shift[1]
-    ] = mean_azimuth_map
-    ara_elevation[
-        shift[0] : s[0] + shift[0], shift[1] : s[1] + shift[1]
-    ] = mean_altitude_map
+    ara_azimuth[shift[0] : s[0] + shift[0], shift[1] : s[1] + shift[1]] = (
+        mean_azimuth_map
+    )
+    ara_elevation[shift[0] : s[0] + shift[0], shift[1] : s[1] + shift[1]] = (
+        mean_altitude_map
+    )
 
-    # Make a symetric map for the other hemisphere
+    # Make a symmetric map for the other hemisphere
     midline = int(atlas.shape[2] / 2)
     ara_azimuth[:, midline:] = np.flip(ara_azimuth[:, :midline], axis=1)
     ara_elevation[:, midline:] = np.flip(ara_elevation[:, :midline], axis=1)
@@ -616,13 +617,13 @@ def move_out_of_area(
     area_ids = np.zeros_like(pts[:, 0]) + np.nan
 
     # Get all the descendants of the area to empty
-    id2empty = set()
+    id2empty_set: set[int] = set()
     if isinstance(areas_to_empty, str):
         areas_to_empty = [areas_to_empty]
     for area_to_empty in areas_to_empty:
         invalid = atlas.structures.tree.leaves(atlas.structures[area_to_empty]["id"])
-        id2empty.update(l.identifier for l in invalid)
-    id2empty = list(id2empty)
+        id2empty_set.update(leave.identifier for leave in invalid)
+    id2empty = list(id2empty_set)
 
     # Find all points that are in the area to empty
     voxel_coords = np.round(pts / np.array(atlas.resolution)).astype(int)
@@ -646,13 +647,13 @@ def move_out_of_area(
         )
 
     # Find which areas are valid destinations
-    idvalid = set()
+    idvalid_set: set[int] = set()
     if isinstance(valid_areas, str):
         valid_areas = [valid_areas]
     for valid_area in valid_areas:
         valid = atlas.structures.tree.leaves(atlas.structures[valid_area]["id"])
-        idvalid.update(l.identifier for l in valid)
-    idvalid = list(idvalid)
+        idvalid_set.update(leave.identifier for leave in valid)
+    idvalid = list(idvalid_set)
     if verbose:
         print(f"Found {len(idvalid)} acceptable target areas")
 
