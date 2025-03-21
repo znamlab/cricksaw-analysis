@@ -1,0 +1,130 @@
+[project]
+name = "cricksaw-analysis"
+authors = [{name = "Znamlab", email= "blota@crick.ac.uk"}]
+description = "Postprocessing and analysis of Cricksaw data"
+readme = "README.md"
+requires-python = ">=3.8.0"
+dynamic = ["version"]
+
+dependencies = [        "numpy",
+        "pyyaml",
+        "pynrrd",
+        "matplotlib",
+        "setuptools",
+        "napari",
+        "scikit-image",
+        "tifffile",
+        "brainglobe_napari_io",
+        "cellfinder",
+        "czifile",
+        "ccf_streamlines",
+        "bg-atlasapi",
+        "flexiznam @ git+ssh://git@github.com/znamlab/flexiznam.git",]
+
+license = {text = "MIT"}
+
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: MIT License",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/znamlab/cricksaw-analysis"
+"Bug Tracker" = "https://github.com/znamlab/cricksaw-analysis/issues"
+"Documentation" = "https://github.com/znamlab/cricksaw-analysis"
+"Source Code" = "https://github.com/znamlab/cricksaw-analysis"
+"User Support" = "https://github.com/znamlab/cricksaw-analysis/issues"
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-cov",
+  "coverage",
+  "tox",
+  "mypy",
+  "pre-commit",
+  "ruff",
+  "setuptools_scm",
+]
+
+[build-system]
+requires = [
+    "setuptools>=45",
+    "wheel",
+    "setuptools_scm[toml]>=6.2",
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["cricksaw_analysis*"]
+exclude = ["tests*"]
+
+[tool.pytest.ini_options]
+addopts = "--cov=cricksaw_analysis"
+filterwarnings = [
+    "error",
+]
+
+[tool.setuptools_scm]
+
+[tool.check-manifest]
+ignore = [
+  ".yaml",
+  "tox.ini",
+  "tests/",
+  "tests/test_unit/",
+  "tests/test_integration/",
+]
+
+[tool.ruff]
+line-length = 88
+exclude = ["__init__.py", "build", ".eggs"]
+lint.select = [
+  "E",   # pycodestyle errors
+  "F",   # Pyflakes
+  "I",   # isort
+  # You can see what all the rules do here: https://docs.astral.sh/ruff/rules/
+  # Some additional ruff rules that might be useful (uncomment to enable)
+  #"UP",  # pyupgrade
+  #"B",   # flake8 bugbear
+  #"SIM", # flake8 simplify
+  #"C90", # McCabe complexity
+]
+fix = true
+
+[tool.ruff.format]
+docstring-code-format = true # Also format code in docstrings (e.g. examples)
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+envlist = py{311,312,313}
+isolated_build = True
+
+[gh-actions]
+python =
+    3.11: py311
+    3.12: py312
+    3.13: py313
+
+[testenv]
+extras =
+    dev
+commands =
+    pytest -v --color=yes --cov=cricksaw_analysis --cov-report=xml
+"""
+
+
+[tool.codespell]
+skip = '.git'
+check-hidden = true
