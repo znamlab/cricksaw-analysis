@@ -23,7 +23,7 @@ Trying to update with `pip --upgrade` can break things.
 
 When reinstalling I ran into ``GLIBCXX_3.4.30' not found ` errors. This can be fixed by installing the right version of gcc:
 ```bash
-conda install -c conda-forge gcc 
+conda install -c conda-forge gcc
 ```
 ## Cricksa analysis
 
@@ -34,5 +34,5 @@ Easy:
 # Elastix on camp
 
 Running elastix on camp requires a singularity container and elastix binaries
-that are both in `/camp/home/blota/home/shared/resources/elastix`. See 
+that are both in `/camp/home/blota/home/shared/resources/elastix`. See
 `scripts/analysis/cricksaw-register.sh` for an example of how to use them.
