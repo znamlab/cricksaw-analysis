@@ -1,8 +1,9 @@
 import re
-import yaml
-from pathlib import Path
-import flexiznam as flz
 import warnings
+from pathlib import Path
+
+import flexiznam as flz
+import yaml
 
 
 def cricksaw_dataset_from_metadata(
@@ -13,7 +14,8 @@ def cricksaw_dataset_from_metadata(
     Args:
         cricksaw_data (str): Path to cricksaw folder or recipe file
         parent_id (str): Hexadecimal id of the parent dataset on flexilims
-        flexilims_session (flexilims.Session): Flexilims session object, must have valid project_id
+        flexilims_session (flexilims.Session): Flexilims session object, must have valid
+            project_id
         conflicts (str, optional): What to do if a cellfinder dataset already exists for
             this parent. See `flz.Dataset.from_origin` for more. Defaults to "abort".
         upload (bool, optional): Upload dataset to flexilims. Defaults to False.
@@ -42,7 +44,7 @@ def cricksaw_dataset_from_metadata(
         ds.path = recipe.relative_to(flz.PARAMETERS["data_root"]["processed"])
     else:
         print(
-            f"CANNOT FIND THE PATH TO THE DATASET. "
+            "CANNOT FIND THE PATH TO THE DATASET. "
             + f"{recipe} does not contain raw nor processed root."
         )
         print("Dataset won't be uploaded. Change path manually first.")
@@ -92,7 +94,8 @@ def cellfinder_dataset_from_log(
     Args:
         cellfinder_log (str): Path to cellfinder log file
         parent_id (str): Hexadecimal id of the parent dataset on flexilims
-        flexilims_session (flexilims.Session): Session object, must have valid project_id
+        flexilims_session (flexilims.Session): Flexilims session object, must have valid
+            project_id
         conflicts (str, optional): What to do if a cellfinder dataset already exists for
             this parent. See `flz.Dataset.from_origin` for more. Defaults to "abort".
         upload (bool, optional): Upload dataset to flexilims. Defaults to False.

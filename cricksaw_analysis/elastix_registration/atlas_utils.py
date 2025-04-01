@@ -1,20 +1,20 @@
 """Functions used to modify the atlas"""
+
+import os
+from functools import partial
 from pathlib import Path
 
-import SimpleITK as sitk
-from sklearn.neighbors import KDTree
 import numpy as np
-import os
-import pyqtgraph as pg  # needed for correct lasagna import.
 import pandas as pd
+import SimpleITK as sitk
 from lasagna.io_libs import ara_json
 from lasagna.tree import tree_parser
+from scipy.ndimage.morphology import binary_dilation
+from scipy.optimize import least_squares
 
 # from OpenEphys import utils
-from skimage import segmentation, morphology
-from scipy.ndimage.morphology import binary_dilation
-from functools import partial
-from scipy.optimize import least_squares
+from skimage import morphology, segmentation
+from sklearn.neighbors import KDTree
 
 
 def get_cortex_borders(path_to_atlas, path_to_json):

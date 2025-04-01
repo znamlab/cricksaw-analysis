@@ -4,12 +4,12 @@ Functions linked to registration in itself
 - register_one_step
 - register_roi
 """
+
 import os
 import shutil
 
-import yaml
 import SimpleITK
-from numpy import argmax, vstack, array
+from numpy import argmax, array, vstack
 
 
 def apply_registration(
@@ -84,7 +84,8 @@ def apply_registration(
         # # There are nasty bugs in SimpleElastix. That fails with segfault:
         # # (see https: // github.com / SuperElastix / SimpleElastix / issues / 113)
         # transformix_image_filter = SimpleITK.TransformixImageFilter()
-        # transformix_image_filter.SetTransformParameterMap(SimpleITK.ReadParameterFile(trans_param_file))
+        # transformix_image_filter.SetTransformParameterMap(SimpleITK.ReadParameterFile(
+        #   trans_param_file))
         # transformix_image_filter.SetMovingImage(SimpleITK.ReadImage(path_to_image))
         # transformix_image_filter.SetOutputDirectory(out_transformix_folder)
         # output = transformix_image_filter.Execute()
@@ -187,11 +188,13 @@ def register_roi(transform_folder, roi_files, root_name):
     :param transform_folder: folder to look for elastix transform
     :param roi_files: path to roi files to transformix
     :param root_name: prefix name for the transform folder
-    :return registered_rois: a list of string with the name of registered ROI files (in pts format)
+    :return registered_rois: a list of string with the name of registered ROI files (in
+        pts format)
     """
 
     # if path2atlas is None:
-    #     pref_file = os.path.join(os.path.expanduser('~'), '.lasagna', 'ARA_plugin_prefs.yml')
+    #     pref_file = os.path.join(os.path.expanduser('~'), '.lasagna', '
+    #                   ARA_plugin_prefs.yml')
     #     with open(pref_file, 'r') as stream:
     #         ara_prefs = yaml.load(stream, Loader=yaml.FullLoader)
     #         atlas_folder = ara_prefs['ara_paths'][0]
@@ -247,7 +250,8 @@ def register_roi(transform_folder, roi_files, root_name):
             # Do the transformation
             # # There are nasty bugs in SimpleElastix. That fails with segfault:
             # transformix_image_filter = SimpleITK.TransformixImageFilter()
-            # transformix_image_filter.SetTransformParameterMap(SimpleITK.ReadParameterFile(trans_param_file))
+            # transformix_image_filter.SetTransformParameterMap(
+            #   SimpleITK.ReadParameterFile(trans_param_file))
             # transformix_image_filter.SetFixedPointSetFileName(pts_file)
             # transformix_image_filter.SetOutputDirectory(out_transformix_folder)
             # transformix_image_filter.SetMovingImage(useless3dimage)
@@ -303,17 +307,19 @@ def registration_single_step(
     """Do one single step of the registration.
 
     Default transform names are:
-    'translation', 'rigid', 'affine', 'bspline', 'pts_translation', 'pts_rigid', 'pts_affine', 'pts_bspline'
+    'translation', 'rigid', 'affine', 'bspline', 'pts_translation', 'pts_rigid',
+    'pts_affine', 'pts_bspline'
 
     :param fixed_image: SimpleITK image or file name
     :param moving_image: SimpleITK image or file name
     :param path_to_save: root folder to save data
     :param prefix: name to prepend to output (RR43_s04_s07 for instance)
-    :param transform_list: list of transform to apply sequentially. Must be keys of `parameter_map_dictionary`
+    :param transform_list: list of transform to apply sequentially. Must be keys of
+        `parameter_map_dictionary`
     :param fixed_pts: path to point file if needed
     :param moving_pts: path to point file if needed
-    :param parameter_map_dictionary: a dictionnary of parameter map. If None, the default will be loaded (works only if
-     the M drive is mount in `/mnt/microscopy).`
+    :param parameter_map_dictionary: a dictionnary of parameter map. If None, the
+        default will be loaded (works only if the M drive is mount in `/mnt/microscopy)`
     :param fixed_mask: Mask to apply to the fix image
     :param moving_mask: Mask to apply to the moving image
     :return: transformed image
@@ -369,7 +375,7 @@ def registration_single_step(
         elastix_image_filter.SetMovingMask(moving_mask)
         change_sampler = True
     if change_sampler:
-        print("There is a mask, I" "ll switch to randomMask sampler")
+        print("There is a mask, Ill switch to randomMask sampler")
         new_params = []
         for param in elastix_image_filter.GetParameterMap():
             param["ImageSampler"] = ["RandomSparseMask"]
@@ -391,7 +397,8 @@ def load_parameter_maps(
 ):
     """Load parameter maps
 
-    :param param_path: default '/mnt/microscopy/Data/MF_data/Fabia/mice/RR/elastix_transforms'
+    :param param_path: default
+        '/mnt/microscopy/Data/MF_data/Fabia/mice/RR/elastix_transforms'
     :return pm_dict: dictionary of parameter maps
     """
     pm_dict = {}

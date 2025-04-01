@@ -32,6 +32,7 @@ repos:
                 - types-setuptools
                 - types-requests
                 - types-six
+                - types-pyyaml
     - repo: https://github.com/mgedmin/check-manifest
       rev: "0.50"
       hooks:
