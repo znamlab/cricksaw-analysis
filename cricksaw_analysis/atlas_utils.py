@@ -1,7 +1,7 @@
 import warnings
 from pathlib import Path
 
-import bg_atlasapi as bga
+import brainglobe_atlasapi as bga
 import ccf_streamlines.projection as ccfproj
 import numpy as np
 import pandas as pd
@@ -621,8 +621,13 @@ def move_out_of_area(
     if isinstance(areas_to_empty, str):
         areas_to_empty = [areas_to_empty]
     for area_to_empty in areas_to_empty:
-        invalid = atlas.structures.tree.leaves(atlas.structures[area_to_empty]["id"])
-        id2empty_set.update(leave.identifier for leave in invalid)
+        if area_to_empty == "outside":
+            id2empty_set.add(0)
+        else:
+            invalid = atlas.structures.tree.leaves(
+                atlas.structures[area_to_empty]["id"]
+            )
+            id2empty_set.update(leave.identifier for leave in invalid)
     id2empty = list(id2empty_set)
 
     # Find all points that are in the area to empty
