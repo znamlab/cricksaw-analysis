@@ -1,6 +1,7 @@
 from pathlib import Path
-import tifffile
+
 import pandas as pd
+import tifffile
 
 
 def load_cellfinder_results(cellfinder_folder):

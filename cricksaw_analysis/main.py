@@ -1,11 +1,11 @@
 from pathlib import Path
 
+import flexiznam as fzm
 import numpy as np
 from brainglobe_napari_io.cellfinder import reader_xml
 from napari import Viewer
-from skimage import morphology, measure
+from skimage import measure, morphology
 from tifffile import tifffile
-import flexiznam as fzm
 
 
 def find_injection_site(img, area, pixel_size_um, percentile=99.99):
@@ -165,7 +165,8 @@ def find_cell_in_injection_site(
         viewer = Viewer()
         viewer.add_image(
             img,
-            name="%s chan %d %dum" % (mouse, channel, pixel_size_um),
+            name="%s chan %d %dum"  # codespell:ignore dum
+            % (mouse, channel, pixel_size_um),
             scale=np.ones(3) * pixel_size_um,
         )
 
