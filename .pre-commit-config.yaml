@@ -43,5 +43,6 @@ repos:
       rev: v2.4.1
       hooks:
       - id: codespell
+        args: [--skip="*.py,./cricksaw_analysis/elastix_registration"]
         additional_dependencies:
         - tomli

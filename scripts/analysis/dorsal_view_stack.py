@@ -4,20 +4,22 @@ Create a dorsal view projected across layers.
 Particularly useful to find blood vessel patterns
 """
 
-import matplotlib
 import socket
+
+import matplotlib
 
 if socket.gethostname() == "C02Z85AULVDC":
     matplotlib.use("macosx")
 
 from pathlib import Path
-import bg_atlasapi as bga
+
+import brainglobe_atlasapi as bga
 import itk
 import numpy as np
-from napari.viewer import Viewer
-from cricksaw_analysis import atlas_utils
 import tifffile
+from napari.viewer import Viewer
 
+from cricksaw_analysis import atlas_utils
 
 PROCESSED = Path("/camp/lab/znamenskiyp/home/shared/projects")
 PROJECT = "hey2_3d-vision_foodres_20220101"
@@ -134,11 +136,9 @@ for l in layers:
                 ),
             )
             stack.append(img)
-        stack=np.stack(stack)
-        tifffile.imwrite(PATH_TO_SAVE
-                / (
-                    f"dorsal_view_stack_around_layer_1_{color}.tif"
-                ),
-                stack)
+        stack = np.stack(stack)
+        tifffile.imwrite(
+            PATH_TO_SAVE / (f"dorsal_view_stack_around_layer_1_{color}.tif"), stack
+        )
 
         # do the extended depth of focus in FIJI

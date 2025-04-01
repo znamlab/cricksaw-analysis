@@ -1,12 +1,10 @@
 from pathlib import Path
-import flexiznam as fzm
-import bg_space as bgs
-import bg_atlasapi as bga
 
+import brainglobe_atlasapi as bga
+import flexiznam as fzm
 import numpy as np
-from napari.viewer import Viewer
-from brainglobe_napari_io.cellfinder import reader_xml
 import tifffile
+from napari.viewer import Viewer
 
 from cricksaw_analysis import atlas_utils
 

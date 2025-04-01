@@ -13,7 +13,7 @@ if socket.gethostname() == "C02Z85AULVDC":
 
 from pathlib import Path
 
-import bg_atlasapi as bga
+import brainglobe_atlasapi as bga
 import itk
 import matplotlib.pyplot as plt
 import numpy as np

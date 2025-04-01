@@ -3,19 +3,22 @@ Create a version of the data registered to the atlas but with only few layers
 
 """
 
-import matplotlib
 import socket
 import time
 
+import matplotlib
+
 if socket.gethostname() == "C02Z85AULVDC":
     matplotlib.use("macosx")
-import yaml
 from pathlib import Path
+
+import brainglobe_atlasapi as bga
 import flexiznam as fzm
-import bg_atlasapi as bga
 import itk
 import numpy as np
 import SimpleITK as sitk
+import yaml
+
 from cricksaw_analysis import atlas_utils
 
 PROCESSED = Path(fzm.PARAMETERS["data_root"]["processed"])
