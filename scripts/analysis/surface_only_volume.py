@@ -58,7 +58,7 @@ else:
 
 
 PATH_TO_SAVE = DATA_FOLDER / "dorsal_view"
-ATLAS_NAME = "allen_mouse_%dum" % ATLAS_SIZE
+ATLAS_NAME = "allen_mouse_%dum" % ATLAS_SIZE  # codespell:ignore dum
 # make sure it exists
 PATH_TO_SAVE.mkdir(exist_ok=True)
 

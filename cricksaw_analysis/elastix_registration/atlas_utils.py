@@ -18,19 +18,22 @@ from sklearn.neighbors import KDTree
 
 
 def get_cortex_borders(path_to_atlas, path_to_json):
-    """Return the pia and the white matter around the cortex for one hemisphere (the left)"""
+    """Return the pia and the white matter around the cortex for one hemisphere
+    (the left)"""
 
     ara_df, ara_tree = load_labels(path_to_json, return_df=True, return_tree=True)
 
     isocortex_id = ara_df[ara_df.name == "Isocortex"].id.iloc[0]
     ctx_ids = ara_tree.find_leaves(int(isocortex_id))
-    # the claustrum is annoying. It make a tiny hole in the surface, add it as if it was cortex
+    # the claustrum is annoying. It make a tiny hole in the surface, add it as if it was
+    # cortex
     claustrum_id = ara_df[ara_df.name == "Claustrum"].id.iloc[0]
     ctx_ids.append(int(claustrum_id))
     atlas = sitk.ReadImage(path_to_atlas)
     atlas = sitk.GetArrayFromImage(atlas)
 
-    # Midline is annoying. Cut the atlas in two and add a line of outside the brain on the side
+    # Midline is annoying. Cut the atlas in two and add a line of outside the brain on
+    # the side
     semi_atlas = np.array(atlas)
     semi_atlas[:, :, -int(np.floor(atlas.shape[2] / 2)) :] = 0
     semi_wm = sitk.GetArrayFromImage(
@@ -120,22 +123,19 @@ def translate_atlas(in_image, translator, path_to_save=None, out_dtype="int32"):
 
 def create_borders_atlas(path_to_atlas):
     """Create a binary image with the border of all areas set to 1"""
-    OUT_OFF_BRAIN_VALUE = 0  # value of a pixel that is outside of the brain
     atlas = sitk.ReadImage(path_to_atlas)
     array = sitk.GetArrayFromImage(atlas)
     borders = np.zeros(array.shape, dtype="uint8")
 
-    # using skimage would label both side of the border. Use diff instead. The border is in one of the two area.
-    # There is no good reason to select one or the other.
+    # using skimage would label both side of the border. Use diff instead. The border is
+    # in one of the two area. There is no good reason to select one or the other.
     for ip, plane in enumerate(array):
         # first look from left to right
         for il, line in enumerate(plane):
-            bord = np.diff(np.hstack([0, line])) != 0
-            borders[ip, il, :] = bord
+            borders[ip, il, :] = np.diff(np.hstack([0, line])) != 0
         # then from bottom to top
         for ic, col in enumerate(plane.T):
-            bord = np.diff(np.hstack([0, col])) != 0
-            borders[ip, :, ic] += bord
+            borders[ip, :, ic] += np.diff(np.hstack([0, col])) != 0
     borders[borders != 0] = 255
     bord_img = sitk.GetImageFromArray(borders)
 
@@ -149,14 +149,15 @@ def load_labels(path_to_json, return_df=False, return_tree=True):
 
     The JSON should be the raw JSON from the ARA website
 
-    Returns the labels as a tree structure that can be indexed by ID or/and a pandas dataframe
+    Returns the labels as a tree structure that can be indexed by ID or/and a pandas
+    dataframe
     """
     flattened_ara_tree, header = ara_json.import_data(path_to_json)
     table = flattened_ara_tree.strip().split("\n")
     out = []
     if return_df:
         ara_df = pd.DataFrame(
-            data=[l.split("|") for l in table], columns=header.split("|")
+            data=[line.split("|") for line in table], columns=header.split("|")
         )
         ara_df.set_index("id", drop=False, inplace=True)
         out.append(ara_df)
@@ -222,9 +223,11 @@ def plot_borders_and_areas(
 
     :param label_img: a 2d image of labels
     :param areas_to_plot: a list (of list) of area ids to label.
-    :param color_kwargs: kwargs for imshow of the borders (useful for color specification)
+    :param color_kwargs: kwargs for imshow of the borders (useful for color
+        specification)
     :param border_dilatation: number of iteration of dilatation of borders
-    :param area_dilatation:  number of iteration of dilatation of areas. Useful to render very thin structures
+    :param area_dilatation:  number of iteration of dilatation of areas. Useful to
+        render very thin structures
     :return: img, border the image label and the image of borders
     """
     kwargs = dict(vmin=0, vmax=len(areas_to_plot) + 1)
@@ -250,7 +253,7 @@ def plot_borders_and_areas(
         return img, border
 
     # instead of plotting the border, make a contour for each area
-    # frist group subgroups of areas
+    # first group subgroups of areas
     new_label = np.array(label_img)
     filled_areas = []
     for area_subgroup in areas_to_plot:
@@ -351,7 +354,8 @@ def create_ctx_table(path_to_json):
                 name=id,
             )
         elif id in [810, 819]:
-            # two annoying area have layer specification but not layer written in their name
+            # two annoying area have layer specification but not layer written in their
+            # name
             layer = full_name.lower().split(" ")[-1].strip()
             parent = ara_tree[node.parent]
             data = pd.Series(
@@ -369,7 +373,7 @@ def create_ctx_table(path_to_json):
                 dict(
                     cortical_area=full_name,
                     cortical_area_id=id,
-                    layer="nd",
+                    layer="nd",  # codespell:ignore nd
                     sub_area="none",
                     sub_area_id=np.nan,
                 ),
@@ -396,7 +400,7 @@ def get_closest_with_interpolation(kdtree, pts_to_move, kd_data=None, k=3):
     exact = dist[:, 0] == 0
     weighted_av = np.zeros_like(pts_to_move)
     weighted_av[exact] = pts_to_move[exact]
-    # for the rest do a wieghted average
+    # for the rest do a weighted average
     to_av = np.logical_not(exact)
     weight = 1 / dist[to_av]
     weighted_av[to_av] = (np.sum(pts_3d[:, to_av] * weight, 2) / np.sum(weight, 1)).T
@@ -431,7 +435,7 @@ def get3d_position(
     vt_tree = KDTree(vt)
     # find the 3 closest 2d support point
     dist, indices = vt_tree.query(coords2d, return_distance=True, k=3)
-    index_3d = np.asarray([[index2dto3d[i] for i in l] for l in indices])
+    index_3d = np.asarray([[index2dto3d[i] for i in pts] for pts in indices])
     pts_3d = np.dstack([vertices[i, :] for i in index_3d])
 
     # make a weighted average on the triangle to find the real point
@@ -468,7 +472,7 @@ def get_2d_position(coords3d, atlas_folder, atlas=None, hemisphere="right"):
 
 
 def write_obj(target, verts, normals, faces, zero_based=True):
-    """write an obj file for vertices, normales and faces"""
+    """write an obj file for vertices, normals and faces"""
     if not zero_based:
         faces = faces + 1
     thefile = open(target, "w")
@@ -483,7 +487,7 @@ def write_obj(target, verts, normals, faces, zero_based=True):
     thefile.close()
 
 
-def load_flat_trans(path2flat_def, return_normale=False):
+def load_flat_trans(path2flat_def, return_normal=False):
     """Load the 3D to 2D transform from obj file"""
 
     with open(path2flat_def, "r") as objdef:
@@ -492,9 +496,9 @@ def load_flat_trans(path2flat_def, return_normale=False):
     # use regexp instead
     import re
 
-    v_pattern = re.compile("v (\d+.?\d*) (\d+.?\d*) (\d+.?\d*)")
-    vt_pattern = re.compile("vt (\d+.?\d*) (\d+.?\d*)")
-    f_pattern = re.compile("f (\d+)/(\d+) (\d+)/(\d+) (\d+)/(\d+)\n")
+    v_pattern = re.compile(r"v (\d+.?\d*) (\d+.?\d*) (\d+.?\d*)")
+    vt_pattern = re.compile(r"vt (\d+.?\d*) (\d+.?\d*)")
+    f_pattern = re.compile(r"f (\d+)/(\d+) (\d+)/(\d+) (\d+)/(\d+)\n")
     with open(path2flat_def, "r") as objdef:
         contents = objdef.read()
     vertices = np.array(v_pattern.findall(contents), dtype=float)
@@ -505,19 +509,22 @@ def load_flat_trans(path2flat_def, return_normale=False):
     flatf3d = f3d.reshape(-1)
     index3dto2d = dict([(three, two) for two, three in zip(f2d, flatf3d)])
 
-    if not return_normale:
+    if not return_normal:
         return vertices, vt, index3dto2d
 
-    # also get normales
+    # also get normals
     # from https://sites.google.com/site/dlampetest/python/calculating-normals-of-a-triangle-mesh-using-numpy
     # and https://stackoverflow.com/questions/6656358/calculating-normals-in-a-triangle-mesh/6661242#6661242
-    # Create a zeroed array with the same type and shape as our vertices i.e., per vertex normal
+    # Create a zeroed array with the same type and shape as our vertices i.e., per
+    # vertex normal
     norm = np.zeros(vertices.shape, dtype=vertices.dtype)
-    # Create an indexed view into the vertex array using the array of three indices for triangles
+    # Create an indexed view into the vertex array using the array of three indices for
+    # triangles
     tris = vertices[f3d]
-    # Calculate the normal for all the triangles, by taking the cross product of the vectors v1-v0, and v2-v0 in each triangle
+    # Calculate the normal for all the triangles, by taking the cross product of the
+    # vectors v1-v0, and v2-v0 in each triangle
     n = np.cross(tris[::, 1] - tris[::, 0], tris[::, 2] - tris[::, 0])
-    # Now i need to find the faces of each vertex and sum their normales
+    # Now i need to find the faces of each vertex and sum their normals
     norm[f3d[:, 0]] += n
     norm[f3d[:, 1]] += n
     norm[f3d[:, 2]] += n
@@ -592,7 +599,8 @@ def get_trees_to_border(atlas_folder, tree_dict=None):
 
 
 def project_pts_to_wm(pts, atlas_folder, tree_dict=None):
-    """Project pts to the closest border between layer and then iteratively towards the wm"""
+    """Project pts to the closest border between layer and then iteratively towards the
+    wm"""
 
     if not len(pts):
         return pts
@@ -643,7 +651,8 @@ def _distance_to_pia_normal(
     pia_tree,
     path_to_wm,
 ):
-    """Calculate the distance from a normale to the pia at coordinates u,v to a single 3d point"""
+    """Calculate the distance from a normal to the pia at coordinates u,v to a single 3d
+    point"""
 
     # first from u,v find the normal vector
     # get the closest 3d pts
@@ -722,7 +731,8 @@ def oignon_plot(
 
 
 def oignon_index(layer, atlas, ctx_table, orientation="dorsal", atlas_df=None):
-    """Return the index of the atlas that would form the projection one one axis once peeled"""
+    """Return the index of the atlas that would form the projection one one axis once
+    peeled"""
     peeled_atlas = peel_atlas(layer, atlas, ctx_table, atlas_df=atlas_df)
     ind = external_view(peeled_atlas, axis=orientation, get_index=True)
     return ind
@@ -735,10 +745,12 @@ def external_view(
 
     axis can be dorsal, ventral, left, right, front, back
 
-    if get_index, doesn't return the view but the index of the pixels generating the view
+    if get_index, doesn't return the view but the index of the pixels generating the
+    view
 
-    if which is first return the surface. If which is last, return the first index after the surface that is out of the
-     brain. It is not equivalent to changing the axis if you have multiple pieces of brain overlapping"""
+    if which is first return the surface. If which is last, return the first index after
+    the surface that is out of the brain. It is not equivalent to changing the axis if
+    you have multiple pieces of brain overlapping"""
 
     # reorder atlas to put the relevant view as first axis
     if axis in ["front", "back"]:
@@ -763,12 +775,12 @@ def external_view(
         # look for the first 1
         first_in_brain = np.argmax(
             is_in_brain, axis=0
-        )  # argmax return the first occurence of max (which is 1 here)
+        )  # argmax return the first occurrence of max (which is 1 here)
     elif which == "last":
         # look for the first -1
         first_in_brain = np.argmin(
             is_in_brain, axis=0
-        )  # argmin return the first occurence of min (which is -1 here)
+        )  # argmin return the first occurrence of min (which is -1 here)
     else:
         raise IOError("Unknown type. `which` should be first or last")
     if get_index:
@@ -831,10 +843,12 @@ def peel_atlas(layer, atlas, ctx_table, get_peel=False, atlas_df=None):
 
 
 def project_pts_to_pia(pts, atlas_folder, method="optimize", tree_dict=None):
-    """Project pts to the closest border between layer and then iteratively towards the pia
+    """Project pts to the closest border between layer and then iteratively towards the
+    pia
 
-    method can be `optimize`, for a slow 2D search on the UV coordinate for the point with the best projection
-    or `via_wm` to go down to the white matter and then find the closest predefined path"""
+    method can be `optimize`, for a slow 2D search on the UV coordinate for the point
+    with the best projection or `via_wm` to go down to the white matter and then find
+    the closest predefined path"""
 
     if not len(pts):
         return pts
@@ -881,7 +895,7 @@ def project_pts_to_pia(pts, atlas_folder, method="optimize", tree_dict=None):
         exact = dist[:, 0] == 0
         weighted_av = np.zeros_like(pts)
         weighted_av[exact] = pts_3d[:, exact, 0].T
-        # for the rest do a wieghted average
+        # for the rest do a weighted average
         to_av = np.logical_not(exact)
         weight = 1 / dist[to_av]
         weighted_av[to_av] = (
@@ -894,7 +908,8 @@ def project_pts_to_pia(pts, atlas_folder, method="optimize", tree_dict=None):
 
 
 def get_path_across_layers(pia_pts, atlas_folder, tree_dict=None):
-    """For each point on the surface find the shortest way to the white matter through all layers
+    """For each point on the surface find the shortest way to the white matter through
+    all layers
 
     Requires the border points created by get_cortical_borders"""
     out = project_pts_to_wm(pia_pts, atlas_folder, tree_dict)

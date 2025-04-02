@@ -52,7 +52,7 @@ else:
 
 PATH_TO_SAVE = DATA_FOLDER / "dorsal_view"
 PATH_TO_SAVE /= "stacks"
-ATLAS_NAME = "allen_mouse_%dum" % ATLAS_SIZE
+ATLAS_NAME = "allen_mouse_%dum" % ATLAS_SIZE  # codespell:ignore dum
 NAPARI = False
 
 if not PATH_TO_SAVE.is_dir():
@@ -87,8 +87,6 @@ else:
 peeled_atlas = np.array(atlas_annot, copy=True)
 
 atlas_dorsal_by_layer = dict()
-data_dorsal_by_layer = dict()
-bg_dorsal_by_layer = dict()
 atlas_index = dict()
 
 # we will have dorsal views, so size of shape[0] x shape[2]
@@ -98,15 +96,15 @@ y = np.array(y, dtype=int).T
 top_of_layer = atlas_utils.external_view(
     peeled_atlas, axis="dorsal", border_only=False, get_index=True, which="first"
 )
-for l in layers:
-    print("Doing %s" % l, flush=True)
-    atlas_index[l] = top_of_layer
-    layer_index = ctx_df.loc[ctx_df.layer == l, "id"].values
+for layer in layers:
+    print("Doing %s" % layer, flush=True)
+    atlas_index[layer] = top_of_layer
+    layer_index = ctx_df.loc[ctx_df.layer == layer, "id"].values
     # make a dorsal view of the atlas
     atlas_layer = np.zeros(x.shape, dtype=atlas_annot.dtype)
     atlas_layer[x, y] = atlas_annot[x, top_of_layer, y]
-    atlas_dorsal_by_layer[l] = atlas_layer
-    print("Peeling layer %s" % l, flush=True)
+    atlas_dorsal_by_layer[layer] = atlas_layer
+    print("Peeling layer %s" % layer, flush=True)
     layer_mask = np.isin(atlas_annot, layer_index)
     peeled_atlas[layer_mask] = 0
     print("Find surface of next layer", flush=True)
@@ -132,7 +130,7 @@ for l in layers:
                 PATH_TO_SAVE
                 / (
                     "dorsal_view_stack_around_layer_%s_%s_%02d.png"
-                    % (l.replace("/", ""), color, name)
+                    % (layer.replace("/", ""), color, name)
                 ),
             )
             stack.append(img)
