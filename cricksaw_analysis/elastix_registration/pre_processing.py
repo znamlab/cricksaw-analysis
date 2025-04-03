@@ -3,7 +3,6 @@ import os
 import xml.etree.ElementTree as ET
 
 import numpy as np
-import pandas as pd
 import SimpleITK as sitk
 import tifffile
 import yaml
@@ -84,7 +83,7 @@ def get_downsample_factor(path2tiff, outsize=25):
                 if k in metadata:
                     outmetadata[k] = metadata[k]
         else:
-            outmetadata = {"unit": "nd"}
+            outmetadata = {"unit": "nd"}  # codespell:ignore nd
 
     # Metadata are processed. Get downsample factor
     assert pixel_size[0] == pixel_size[1]  # It should be square pixels
@@ -100,7 +99,8 @@ def get_brainsaw_downsample_factor(path2recipe, outsize=25):
 
 
     :param path2recipe: full path to the yaml file
-    :param outsize: pixel size in XYZ after downsampling in same unit as input (presumably microns)
+    :param outsize: pixel size in XYZ after downsampling in same unit as input
+        (presumably microns)
     :return: xy reduction factor
     :return: z_reduction factor
     """
@@ -110,7 +110,8 @@ def get_brainsaw_downsample_factor(path2recipe, outsize=25):
     x, y, z = [voxel_size[i] for i in ["X", "Y", "Z"]]
     if (
         z == 0
-    ):  # if it's zero that means that there is a single plane per slice. Use slice thickness as Z
+    ):  # if it's zero that means that there is a single plane per slice. Use slice
+        # thickness as Z
         z = data["mosaic"]["sliceThickness"] * 1000  # put in microns
     assert (x > 0) and (z > 0)
     if np.abs(x - y) > 0.1:
@@ -119,75 +120,6 @@ def get_brainsaw_downsample_factor(path2recipe, outsize=25):
     xy_reduction_factor = x / outsize
     z_reduction_factor = z / outsize
     return xy_reduction_factor, z_reduction_factor
-
-
-def downsample_brainsaw_roi(
-    path2roi, path2recipe, target=None, outsize=25, force=False, full_res_target=False
-):
-    """Downsample pts rois that have been clicked on a brainsaw brain
-
-    :param path2roi: path to the roi (for now only masiv rois or cells from nifty net if file ends with xml)
-    :param path2recipe: path to the recipe file to read pixel size
-    :param target: file name (including extension) to save data. If None return
-           array but don't write on disk.
-           Supported extension: '.yml'
-    :param outsize: pixel size in XYZ after downsampling in same unit as input
-           (presumably microns)
-    :param force: if target file exist, should I replace? (default False)
-    :param full_res_target: path to a yml file to save the roi without downsampling. Useful to debug or just convert
-    :return: small_rois: array of downsampled rois coordinates
-    """
-
-    xy_reduction_factor, z_reduction_factor = get_brainsaw_downsample_factor(
-        path2recipe, outsize=outsize
-    )
-
-    # Now load the rois
-    if path2roi.endswith(".xml"):
-        # nifty net cells
-        data = np.asarray(read_cell_xml(path2roi, masiv_order=False))
-    else:
-        data = np.asarray(read_masiv_roi(path2roi))
-    if not len(data):
-        raise IOError("Empty ROI file. Is that a loading error?")
-    # make into a dictionnary
-    roi_dict = dict()
-    for ctype in np.unique(data[:, 3]):
-        roi_dict["Type%d" % ctype] = data[data[:, 3] == ctype, :-1]
-
-    if full_res_target is not None:
-        _, ext = os.path.splitext(full_res_target)
-        if ext == ".yml":
-            write_masiv_roi(roi_dict, full_res_target, force=force)
-        elif ext == ".pts":
-            for ctype, roi_coords in roi_dict.items():
-                ftarget = full_res_target.replace(".pts", "_%s.pts" % ctype)
-                write_pts_file(
-                    ftarget,
-                    np.asarray([c[0] for c in roi_coords]),
-                    np.asarray([c[1] for c in roi_coords]),
-                    np.asarray([c[2] for c in roi_coords]),
-                    force=force,
-                    index=False,
-                )
-        else:
-            raise NotImplementedError("Only pts and yml are supported")
-
-    for ctype, roi_coord in roi_dict.items():
-        # divide the xy and z by the proper amount
-        for i, c in enumerate(roi_coord):
-            c[0] *= xy_reduction_factor
-            c[1] *= xy_reduction_factor
-            c[2] *= z_reduction_factor
-
-    if target is not None:
-        _, ext = os.path.splitext(target)
-        if ext == ".yml":
-            write_masiv_roi(roi_dict, target, force=force)
-        else:
-            raise NotImplementedError
-
-    return roi_dict
 
 
 def upsample_brainsaw(
@@ -200,14 +132,17 @@ def upsample_brainsaw(
     check_for_ram=True,
     downsamplefactor=1,
 ):
-    """Opposite of downsample_brainsaw. Upsample the registered atlas for instance to the original size
+    """Opposite of downsample_brainsaw. Upsample the registered atlas for instance to
+    the original size
 
     This does not interpolate in Z but just takes the closest
 
     :param path2img: path to file to upsample
     :param path2recipe: path to the recipe file to read target pixel size
-    :param z_planes_ori: z planes of the original image to upsample (incompatible with z_planes_target)
-    :param z_planes_target: z planes of the target image to upsample (incompatible with z_planes_ori)
+    :param z_planes_ori: z planes of the original image to upsample (incompatible with
+        z_planes_target)
+    :param z_planes_target: z planes of the target image to upsample (incompatible with
+         z_planes_ori)
     :param target: file name (including extension) to save data. If None return
            array but don't write on disk
     :param insize: pixel size in XYZ of the input (25 if you use the classic atlas)
@@ -238,7 +173,7 @@ def upsample_brainsaw(
 
     # read the small image
     img_data = sitk.GetArrayFromImage(sitk.ReadImage(path2img))
-    # output of registartion is in Z,X,Y, reshape to X,Y,Z
+    # output of registration is in Z,X,Y, reshape to X,Y,Z
     img_data = img_data.transpose([1, 2, 0])
     # keep only relevant planes to free ram
     img_data = np.atleast_3d(img_data[:, :, z_planes_ori])
@@ -426,13 +361,15 @@ def downsample_tiff(path2tiff, target, outsize=25, save_by_page=False):
 
      The Z scaling is not changed
 
-     This function should work with ImageJ files and with some ome.tiff files but for anything else, parsing the metadata
-     might fail (needed to get the pixel size)
+     This function should work with ImageJ files and with some ome.tiff files but for
+     anything else, parsing the metadata  might fail (needed to get the pixel size)
 
     :param path2tiff: path to file to downsample
     :param target: file name to write the output
-    :param outsize: pixel size in XY after downsampling in same unit as input (presumably microns)
-    :param save_by_page: if true save a tiff file per page and target must be an existing directory (default false)
+    :param outsize: pixel size in XY after downsampling in same unit as input
+        (presumably microns)
+    :param save_by_page: if true save a tiff file per page and target must be an
+        existing directory (default false)
     :return: array of downsampled data if not save_by_page, else target path
     :return: xy reduction factor
     """
@@ -492,13 +429,14 @@ def pre_processing(
     :param on_focus_plane: plane in the tiff that is on focus (0 based)
     :param z_in_atlas: plane in the atlas corresponding to the tiff (0 based)
     :param roi_files: path to pts roi files
-    :param root_path: path to save data (in downsamples and volume subfolders). Use original image parent if none
+    :param root_path: path to save data (in downsamples and volume subfolders). Use
+        original image parent if none
     :return:
     """
 
     ori_home, root_name = os.path.split(original_image)
     if not root_name.endswith(".ome.tiff"):
-        print("!!!!!! WARNING I was expecting an ome_tiff. What happend? !!!!!")
+        print("!!!!!! WARNING I was expecting an ome_tiff. What happened? !!!!!")
     root_name = root_name[:-9]
     if root_path is None:
         root_path, _ = os.path.split(ori_home)
@@ -528,30 +466,4 @@ def pre_processing(
     if roi_files is None:
         print("ooo")
         return mhd_image
-
-    # Reduce the rois by the same factor:
-    pts_file_list = []
-    for roi_set_path in roi_files:
-        _, set_name = os.path.split(roi_set_path)
-        assert set_name.endswith(".pts")
-        set_name = set_name[:-4]
-        roi_set, roi_type = read_pts_file(roi_set_path)
-        # Make a dataframe for simplifying indexing
-        df_roi = pd.DataFrame(roi_set)
-        # Apply the scale factor
-        df_roi["x_scaled"] = df_roi.iloc[:, 0] * xy_reduction_factor
-        df_roi["y_scaled"] = df_roi.iloc[:, 1] * xy_reduction_factor
-        df_roi["fixed_z"] = z_in_atlas
-        # Write a pts file with these coordinates
-        pts_file = set_name + "_step00_part00.pts"
-        pts_file = os.path.join(path2volume, pts_file)
-        pts_file_list.append(pts_file)
-        write_pts_file(
-            pts_file,
-            np.asarray(df_roi.x_scaled),
-            np.asarray(df_roi.y_scaled),
-            np.asarray(df_roi.fixed_z),
-            force=True,
-            index=False,
-        )
-    return mhd_image, pts_file_list
+    raise NotImplementedError

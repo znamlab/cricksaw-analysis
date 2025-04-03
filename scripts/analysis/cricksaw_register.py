@@ -1,16 +1,20 @@
 import os
 import socket
 
-import numpy as np
+from cricksaw_analysis.elastix_registration import (
+    atlas_utils,
+    pre_processing,
+    register_functions,
+)
 
 print("start")
 ##################### VARIABLES #####################
 # Define the path to data set
 # Global
 
-
+needs_LR_swap = dict(example_mouse_name=False)
 chan2use = 2
-chan2exclude = []  # MUST be string
+chan2exclude: list[str] = []  # MUST be string
 
 machine = socket.gethostname()
 if machine == "C02Z85AULVDC":
@@ -62,11 +66,6 @@ path2borders_withAL = os.path.join(atlas_directory, "borders_with_ALPMLP.mhd")
 #### CODE ####
 
 # Define the path to code and add to path
-from cricksaw_analysis.elastix_registration import (
-    atlas_utils,
-    pre_processing,
-    register_functions,
-)
 
 if do_trans_template:
     print("Atlas loading")
@@ -132,11 +131,11 @@ for mouse_name in todo:
     assert os.path.isdir(dataPath)
 
     # Check that I have the recipe file
-    recipeFile = [
+    recipeFiles = [
         fname for fname in os.listdir(raw_root_path) if fname.startswith("recipe")
     ]
-    assert len(recipeFile) == 1
-    recipeFile = os.path.join(raw_root_path, recipeFile[0])
+    assert len(recipeFiles) == 1
+    recipeFile = os.path.join(raw_root_path, recipeFiles[0])
 
     # Count channels
     chanNames = [
@@ -153,9 +152,11 @@ for mouse_name in todo:
     ############# Downsample ##################
     if do_roi:
         # Start by downsampling the rois
-        roi2register = []
-        cell2register = []
+        roi2register: list[int] = []
+        cell2register: list[str] = []
         if roiPtsFiles:
+            raise NotImplementedError
+            oldcode = """
             print("Downsampling ROIs")
             for roi_path in roiPtsFiles:
                 roi_name = os.path.split(roi_path)[1]
@@ -193,7 +194,10 @@ for mouse_name in todo:
                         index=False,
                     )
                     roi2register.append(target)
+            """
         if cellPtsFiles:
+            raise NotImplementedError
+            oldcode = """
             print("Downsampling Cells")
             for cell_path in cellPtsFiles:
                 cell_name = os.path.split(cell_path)[1]
@@ -232,7 +236,7 @@ for mouse_name in todo:
                         index=False,
                     )
                     cell2register.append(target)
-
+            """
     if do_downsample:
         # Start by downsampling all the channels
 
@@ -292,6 +296,8 @@ for mouse_name in todo:
     if do_roi:
         ################### PROCESS THE ROIs #############################
         print("Registering ROIs")
+        raise NotImplementedError
+        oldcode = """
         registered_rois = register_functions.register_roi(
             path2reg, roi2register, mouse_name
         )
@@ -311,10 +317,12 @@ for mouse_name in todo:
                 roi_files=registered_cells,
                 atlas_size=atlas_size,
             )
+        """
 
         if do_roi_processing:
             # extra steps of processing creating new outputs
-
+            raise NotImplementedError
+            oldversion = """
             print("Processing ROIs")
             roi_to_process = process_rab_roi.get_useful(cell2register, registered_cells)
             for base_name, (raw_roi_file, reg_roi_file) in roi_to_process.items():
@@ -362,6 +370,7 @@ for mouse_name in todo:
                 )
                 # sanity check?
                 print("ok")
+                """
             print("done")
 
     if do_trans_template:
@@ -372,8 +381,8 @@ for mouse_name in todo:
             for line in mhd_file:
                 if "size" not in line.lower():
                     continue
-                _, mhd_size = line.split("=")
-                mhd_size = tuple(i for i in mhd_size.strip().split(" "))
+                _, mhd_size_str = line.split("=")
+                mhd_size = tuple(i for i in mhd_size_str.strip().split(" "))
                 break
         spacing = tuple(
             str(1) for i in range(3)
@@ -436,8 +445,8 @@ for mouse_name in todo:
                 for line in mhd_file:
                     if "size" not in line.lower():
                         continue
-                    _, mhd_size = line.split("=")
-                    mhd_size = tuple(i for i in mhd_size.strip().split(" "))
+                    _, mhd_size_str = line.split("=")
+                    mhd_size = tuple(i for i in mhd_size_str.strip().split(" "))
                     break
             register_functions.apply_registration(
                 path2reg,

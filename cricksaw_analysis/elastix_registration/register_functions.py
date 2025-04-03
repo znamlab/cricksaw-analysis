@@ -6,10 +6,9 @@ Functions linked to registration in itself
 """
 
 import os
-import shutil
 
 import SimpleITK
-from numpy import argmax, array, vstack
+from numpy import argmax
 
 
 def apply_registration(
@@ -137,160 +136,6 @@ def _modify_parameter_file(
     SimpleITK.WriteParameterFile(trans_param, os.path.join(target_folder, fname))
 
 
-def swap_hem_atlas_roi(transform_folder, roi_files, atlas_size=25):
-    """Swap the right and left hemisphere of the rois
-
-    :param transform_folder: folder to look for elastix transform
-    :param roi_files: path to roi files to transformix
-    :param atlas_size: size of the atlas pixel
-    :return flipped_files: file names of the outputs
-    """
-    # First check we know the atlas
-    atlas_shape = {
-        25: (456, 320, 528),
-        10: (1140, 800, 1320),
-    }  # size of the atlas x,y,z
-    if atlas_size not in atlas_shape:
-        raise NotImplementedError("Unknown atlas size.")
-    rightmost = atlas_shape[atlas_size][0]
-
-    flipped_files = []
-    for f_name in roi_files:
-        f_path = os.path.join(transform_folder, f_name)
-        assert os.path.isfile(f_path)
-        assert f_name.endswith(".pts")
-        data = array(rois_io.read_pts_file(f_path)[0])
-
-        # z and y do not change but I need to flip x
-        data[:, 1] = rightmost - data[:, 1]
-
-        # Create a new file name, same but flipped
-        target_name = f_name.replace(".pts", "_flipped.pts")
-        target_path = os.path.join(transform_folder, target_name)
-        # data is in lasagna order.
-        rois_io.write_pts_file(
-            target_path,
-            xs=data[:, 1],
-            ys=data[:, 2],
-            zs=data[:, 0],
-            force=True,
-            index=False,
-        )
-
-        flipped_files.append(target_name)
-
-    return flipped_files
-
-
-def register_roi(transform_folder, roi_files, root_name):
-    """Register a set of ROIs using all the transformations found in a given folder
-
-    :param transform_folder: folder to look for elastix transform
-    :param roi_files: path to roi files to transformix
-    :param root_name: prefix name for the transform folder
-    :return registered_rois: a list of string with the name of registered ROI files (in
-        pts format)
-    """
-
-    # if path2atlas is None:
-    #     pref_file = os.path.join(os.path.expanduser('~'), '.lasagna', '
-    #                   ARA_plugin_prefs.yml')
-    #     with open(pref_file, 'r') as stream:
-    #         ara_prefs = yaml.load(stream, Loader=yaml.FullLoader)
-    #         atlas_folder = ara_prefs['ara_paths'][0]
-    #         path2atlas = os.path.join(atlas_folder, 'template.mhd')
-    # useless3dimage = SimpleITK.ReadImage(path2atlas)
-
-    registered_files = []
-
-    file_names = os.listdir(transform_folder)
-    transform_dict = {}
-    for f_name in file_names:
-        if not os.path.isdir(os.path.join(transform_folder, f_name)):
-            continue
-        if not f_name.startswith(root_name + "_elastix_out_step"):
-            continue
-        elastix_files = os.listdir(os.path.join(transform_folder, f_name))
-        trans_files = [i for i in elastix_files if i.startswith("TransformParameters")]
-        if len(trans_files) == 0:
-            raise IOError("No transformation files for %s. Fix that" % f_name)
-        part = [int(i.split(".")[1]) for i in trans_files]
-        good_file = trans_files[argmax(part)]
-        transform_dict[f_name] = good_file
-
-    for pts_file in roi_files:
-        print("Doing %s" % pts_file)
-        assert os.path.exists(pts_file)
-        _, set_name = os.path.split(pts_file)
-        if not set_name.endswith(
-            "_step00_part00.pts"
-        ):  # I should have the initial point
-            raise IOError(
-                "roi files need to end `_step00_part00.pts` and be in .pts format"
-            )
-        set_name = set_name.replace("_step00_part00.pts", "")
-
-        # Apply the transformations
-        steps = transform_dict.keys()
-        print("%i steps to apply." % len(steps))
-        for step in sorted(steps):
-            print("    Step %s" % step)
-            # Create a temporary folder to hold transformix output
-            out_transformix_folder = step.replace("elastix", "transformix")
-            out_transformix_folder = os.path.join(
-                transform_folder, out_transformix_folder
-            )
-            if not os.path.isdir(out_transformix_folder):
-                os.mkdir(out_transformix_folder)
-
-            trans_param_file = os.path.join(
-                transform_folder, step, transform_dict[step]
-            )
-
-            # Do the transformation
-            # # There are nasty bugs in SimpleElastix. That fails with segfault:
-            # transformix_image_filter = SimpleITK.TransformixImageFilter()
-            # transformix_image_filter.SetTransformParameterMap(
-            #   SimpleITK.ReadParameterFile(trans_param_file))
-            # transformix_image_filter.SetFixedPointSetFileName(pts_file)
-            # transformix_image_filter.SetOutputDirectory(out_transformix_folder)
-            # transformix_image_filter.SetMovingImage(useless3dimage)
-            # output = transformix_image_filter.Execute()
-            # # So do it in bash
-            bashcommand = r"transformix -def %s -tp %s -out %s" % (
-                pts_file,
-                trans_param_file,
-                out_transformix_folder,
-            )
-            print("    Executing: %s" % bashcommand)
-            os.system(bashcommand)
-
-            # Read the output
-            df_pts = rois_io.read_transformix_output(
-                os.path.join(out_transformix_folder, "outputpoints.txt")
-            )
-            # Create a new pts file with output data
-            pts_file = set_name + "%s.pts" % step
-            pts_file = os.path.join(transform_folder, pts_file)
-            data = vstack(df_pts["OutputIndexFixed"])
-            rois_io.write_pts_file(
-                pts_file,
-                xs=data[:, 0],
-                ys=data[:, 1],
-                zs=data[:, 2],
-                force=True,
-                index=False,
-            )
-            # also copy a version on transformix format
-            shutil.copy(
-                os.path.join(out_transformix_folder, "outputpoints.txt"),
-                pts_file.replace(".pts", "_transformix.txt"),
-            )
-        registered_files.append(pts_file)
-
-    return registered_files
-
-
 def registration_single_step(
     fixed_image,
     moving_image,
@@ -318,7 +163,7 @@ def registration_single_step(
         `parameter_map_dictionary`
     :param fixed_pts: path to point file if needed
     :param moving_pts: path to point file if needed
-    :param parameter_map_dictionary: a dictionnary of parameter map. If None, the
+    :param parameter_map_dictionary: a dictionary of parameter map. If None, the
         default will be loaded (works only if the M drive is mount in `/mnt/microscopy)`
     :param fixed_mask: Mask to apply to the fix image
     :param moving_mask: Mask to apply to the moving image
