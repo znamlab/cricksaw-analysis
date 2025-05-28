@@ -64,9 +64,8 @@ def plot_borders_and_areas(
     # first group subgroups of areas
     new_label = np.array(label_img)
     filled_areas = []
-
+    to_label = {}
     for area_subgroup in areas_to_plot:
-        to_label = {}
         area_to_fill = get_area_ids(area_subgroup, label_atlas, get_descendants)
         # paint all the areas in the subgroup with the same color
         main_id = None
@@ -600,7 +599,7 @@ def move_out_of_area(
     """Move pts that are in `areas_to_empty` into the closest area
 
     Args:
-        pts (np.array): array of points to move
+        pts (np.array): array of points to move, in micron
         atlas (BrainGlobeAtlas): atlas to use
         areas_to_empty (str | list): area(s) to empty, must be valid `atlas.structure`
             name (acronym)
@@ -608,7 +607,6 @@ def move_out_of_area(
             be valid `atlas.structure` name (acronym)
         distance_threshold (float): maximum distance to move the points in microns
         verbose (bool): if True, will print some information
-
 
     Returns:
         pd.Dataframe: dataframe with `initial_coords`, `new_coords`, `distance_moved`,
