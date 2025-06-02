@@ -23,7 +23,7 @@ dependencies = [
         "flexiznam @ git+ssh://git@github.com/znamlab/flexiznam.git",
         ]
 
-license = {text = "MIT"}
+license = "MIT"
 
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
@@ -34,7 +34,6 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Operating System :: OS Independent",
-    "License :: OSI Approved :: MIT License",
 ]
 
 [project.urls]
