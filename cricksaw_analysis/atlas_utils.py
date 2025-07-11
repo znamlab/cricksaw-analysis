@@ -1,6 +1,5 @@
 import warnings
 from pathlib import Path
-
 import brainglobe_atlasapi as bga
 import ccf_streamlines.projection as ccfproj
 import numpy as np
@@ -469,10 +468,7 @@ def plot_flatmap(
         flat_atlas: The flatmap of the atlas
     """
     if ccf_streamlines_folder is None:
-        import flexiznam as flz
-
-        project_folder = Path(flz.PARAMETERS["data_root"]["processed"]).parent
-        ccf_streamlines_folder = project_folder / "resources" / "ccf_streamlines"
+        ccf_streamlines_folder = get_ccf_streamlines_folder()
 
     bf_boundary_finder = ccfproj.BoundaryFinder(
         projected_atlas_file=ccf_streamlines_folder / f"{ara_projection}.nrrd",
@@ -716,3 +712,13 @@ def move_out_of_area(
     if verbose:
         print(f"Moved {moved_df.moved.sum()}/{to_move.sum()} points")
     return moved_df
+
+def get_ccf_streamlines_folder():
+    import flexiznam as flz
+    
+    project_folder = Path(flz.PARAMETERS["data_root"]["processed"])
+    ccf_streamlines_folder = project_folder / "ccf_streamlines"
+    if not ccf_streamlines_folder.exists():
+        ccf_streamlines_folder = project_folder.parent / "resources" / "ccf_streamlines"
+    return ccf_streamlines_folder
+
