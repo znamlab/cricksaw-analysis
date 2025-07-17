@@ -1,5 +1,6 @@
 import warnings
 from pathlib import Path
+
 import brainglobe_atlasapi as bga
 import ccf_streamlines.projection as ccfproj
 import numpy as np
@@ -234,17 +235,42 @@ def peel_atlas(
 def external_view(
     atlas, axis="dorsal", border_only=False, get_index=False, which="first"
 ):
-    """Get a view from atlas from one side
+    """Generates a 2D surface view of a 3D atlas from a specified direction.
 
-    axis can be dorsal, ventral, left, right, front, back
+    This function projects a 3D atlas volume onto a 2D plane, showing the
+    surface as seen from a given axis (e.g., dorsal, ventral). It can return
+    either the atlas labels on the surface or the indices of the surface voxels.
 
-    if get_index is True, doesn't return the view but the index of the pixels generating
-    the view
+    Args:
+        atlas (np.ndarray): The 3D numpy array representing the atlas, where
+            different integers correspond to different brain regions.
+        axis (str, optional): The viewing direction. Can be one of "dorsal",
+            "ventral", "top", "bottom", "left", "right", "front", or "back".
+            Defaults to "dorsal".
+        border_only (bool, optional): If True, returns only the borders of the
+            areas in the resulting 2D view. Defaults to False.
+        get_index (bool, optional): If True, the function returns a 2D array
+            of voxel indices along the projection axis that form the surface,
+            instead of the surface view with atlas labels. Defaults to False.
+        which (str, optional): Determines which surface to find. Can be 'first'
+            or 'last'. 'first' finds the first brain voxel encountered from the
+            specified `axis`. 'last' finds the last brain voxel before exiting
+            the brain. This is useful for cases with non-convex structures or
+            multiple disjoint pieces of brain along the projection axis.
+            Defaults to "first".
 
-    if which is first return the surface. If which is last, return the first index
-    after the surface that is out of the brain. It is not equivalent to changing the
-    axis if you have multiple pieces of brain overlapping"""
+    Returns:
+        np.ndarray:
+            - If `get_index` is False, a 2D numpy array representing the
+              surface view of the atlas. If `border_only` is True, this will be
+              a binary image of the area borders.
+            - If `get_index` is True, a 2D numpy array of the same shape as the
+              projection plane, where each value is the index of the surface
+              voxel along the projection axis.
 
+    Raises:
+        IOError: If an unknown `axis` or `which` parameter is provided.
+    """
     # reorder atlas to put the relevant view as first axis
     if axis in ["front", "back"]:
         # nothing to do
@@ -713,12 +739,12 @@ def move_out_of_area(
         print(f"Moved {moved_df.moved.sum()}/{to_move.sum()} points")
     return moved_df
 
+
 def get_ccf_streamlines_folder():
     import flexiznam as flz
-    
+
     project_folder = Path(flz.PARAMETERS["data_root"]["processed"])
     ccf_streamlines_folder = project_folder / "ccf_streamlines"
     if not ccf_streamlines_folder.exists():
         ccf_streamlines_folder = project_folder.parent / "resources" / "ccf_streamlines"
     return ccf_streamlines_folder
-

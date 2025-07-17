@@ -23,7 +23,7 @@ dependencies = [
         "flexiznam @ git+ssh://git@github.com/znamlab/flexiznam.git",
         ]
 
-license = "MIT"
+license = {text = "MIT"}
 
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
